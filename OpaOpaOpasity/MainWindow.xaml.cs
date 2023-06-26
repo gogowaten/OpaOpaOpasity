@@ -24,6 +24,7 @@ namespace OpaOpaOpasity
     public partial class MainWindow : Window
     {
         private const string MY_APP_NAME = "OpaOpaOpacity(おぱおぱおぱしてぃ)";
+        private const string MY_FOlDER_NAME = "opaopaopasity";
         public string MyDirectory { get; private set; } = "";
         public MainWindow()
         {

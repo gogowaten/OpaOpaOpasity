@@ -5,6 +5,12 @@
     <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>opasity512.ico</ApplicationIcon>
+    <Copyright>午後わてん</Copyright>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="opasity512.ico" />
+  </ItemGroup>
 
 </Project>

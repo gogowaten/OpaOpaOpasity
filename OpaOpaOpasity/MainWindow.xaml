@@ -31,7 +31,7 @@
           <RadioButton Content="不透明白" IsChecked="False"/>
         </StackPanel>
       </GroupBox>-->
-      <GroupBox Header="設定" Margin="10">
+      <GroupBox Header="不透明度の設定" Margin="10">
         <StackPanel>
           <TextBlock Text="{Binding ElementName=MySlider, Path=Value, StringFormat=Alpha \= {0}}" HorizontalAlignment="Center"/>
           <TextBlock Text="{Binding ElementName=MySlider, Path=Value, Converter={StaticResource opa},
