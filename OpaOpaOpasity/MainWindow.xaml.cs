@@ -16,6 +16,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
+//半透明のpng画像を不透明に変換保存するアプリ、OpaOpaOpasityできた - 午後わてんのブログ
+//https://gogowaten.hatenablog.com/entry/2023/06/26/200756
+
 namespace OpaOpaOpasity
 {
     /// <summary>
@@ -135,7 +138,7 @@ namespace OpaOpaOpasity
             {
                 if (!string.IsNullOrEmpty(MyDirectory))
                 {
-                    string dir = MyDirectory + "\\opa";
+                    string dir = System.IO.Path.Combine(MyDirectory, MY_FOlDER_NAME);// + "\\opa";
                     _ = Directory.CreateDirectory(dir);
                     foreach (var file in files)
                     {
