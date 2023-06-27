@@ -33,19 +33,18 @@ namespace OpaOpaOpasity
         {
             InitializeComponent();
             Title = MY_APP_NAME + GetAppVersion();
+            SetMyImageGridBackground();
             MyButtonConvertAll.FontSize = FontSize * 1.5;
             MyButtonConvertSelected.FontSize = FontSize * 1.5;
 
             DataContext = this;
             Drop += MainWindow_Drop;
             MyListBox.SelectionChanged += MyListBox_SelectionChanged;
-            ContextMenu MyListBoxContext = new();
-            MenuItem item = new() { Header = "選択画像を変換" };
-            item.Click += Item_Click;
-            MyListBoxContext.Items.Add(item);
-            MyListBox.ContextMenu = MyListBoxContext;
+
 
         }
+
+        #region 初期化
 
         /// <summary>
         /// アプリのバージョン取得、できなかかったときはstring.Emptyを返す
@@ -64,7 +63,96 @@ namespace OpaOpaOpasity
             else { return string.Empty; }
         }
 
-        private void SelectedExe()
+        private void SetMyImageGridBackground()
+        {
+            var bg = MakeCheckeredPattern(20, Color.FromRgb(230, 230, 230));
+            var br = MakeTileBrush(bg);
+            MyImageGrid.Background = br;
+        }
+        #endregion 初期化
+
+        #region 右クリックメニュー
+        private void SetMyListBoxContextMenu()
+        {
+            ContextMenu MyListBoxContext = new();
+            MyListBox.ContextMenu = MyListBoxContext;
+
+            MenuItem item;
+            item = new() { Header = "Alpha値を置き換える" };
+            item.Click += ItemReplace_Click;
+            MyListBoxContext.Items.Add(item);
+            item = new() { Header = "足し算" };
+            item.Click += ItemAdd_Click;
+            MyListBoxContext.Items.Add(item);
+            item = new() { Header = "引き算" };
+            item.Click += ItemSubtract_Click;
+            MyListBoxContext.Items.Add(item);
+
+        }
+
+
+        #endregion 右クリックメニュー
+
+        #region 市松模様画像とブラシ作成
+
+        /// <summary>
+        /// 市松模様画像作成
+        /// </summary>
+        /// <param name="cellSize">タイル1辺のサイズ</param>
+        /// <param name="gray">白じゃない方の色指定</param>
+        /// <returns></returns>
+        private WriteableBitmap MakeCheckeredPattern(int cellSize, Color gray)
+        {
+            int width = cellSize * 2;
+            int height = cellSize * 2;
+            var wb = new WriteableBitmap(width, height, 96, 96, PixelFormats.Rgb24, null);
+            int stride = wb.Format.BitsPerPixel / 8 * width;
+            byte[] pixels = new byte[stride * height];
+            int p = 0;
+            Color iro;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if ((y < cellSize & x < cellSize) | (y >= cellSize & x >= cellSize))
+                    {
+                        iro = Colors.White;
+                    }
+                    else { iro = gray; }
+
+                    p = y * stride + x * 3;
+                    pixels[p] = iro.R;
+                    pixels[p + 1] = iro.G;
+                    pixels[p + 2] = iro.B;
+                }
+            }
+            wb.WritePixels(new Int32Rect(0, 0, width, height), pixels, stride, 0);
+            return wb;
+        }
+
+        //        方法: TileBrush のタイル サイズを設定する | Microsoft Docs
+        //https://docs.microsoft.com/ja-jp/dotnet/framework/wpf/graphics-multimedia/how-to-set-the-tile-size-for-a-tilebrush
+        /// <summary>
+        /// BitmapからImageBrush作成
+        /// 引き伸ばし無しでタイル状に敷き詰め
+        /// </summary>
+        /// <param name="bitmap"></param>
+        /// <returns></returns>
+        private ImageBrush MakeTileBrush(BitmapSource bitmap)
+        {
+            var imgBrush = new ImageBrush(bitmap);
+            imgBrush.Stretch = Stretch.Uniform;//これは必要ないかも
+            //タイルモード、タイル
+            imgBrush.TileMode = TileMode.Tile;
+            //タイルサイズは元画像のサイズ
+            imgBrush.Viewport = new Rect(0, 0, bitmap.Width, bitmap.Height);
+            //タイルサイズ指定方法は絶対値、これで引き伸ばされない
+            imgBrush.ViewportUnits = BrushMappingMode.Absolute;
+            return imgBrush;
+        }
+        #endregion 市松模様画像とブラシ作成
+
+        private void SelectedExe(MyOpe ope)
         {
             List<string> files = new();
             foreach (var item in MyListBox.SelectedItems)
@@ -72,7 +160,7 @@ namespace OpaOpaOpasity
                 string str = (string)item;
                 files.Add(System.IO.Path.Combine(MyDirectory, str));
             }
-            MyExe(files);
+            MyExe(files, ope);
         }
 
         private void MyListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -103,8 +191,7 @@ namespace OpaOpaOpasity
                 MyDirectory = dir;
                 MyTextBlockDir.Text = dir;
                 MyListBox.ItemsSource = GetFileNames(dir);
-                //LINQは処理が遅い、体感できるくらい遅い
-                //MyListBox.ItemsSource = Directory.GetFiles(dir, "*.png").Select(x => System.IO.Path.GetFileName(x));
+                SetMyListBoxContextMenu();
             }
         }
 
@@ -132,7 +219,7 @@ namespace OpaOpaOpasity
         /// 対象フォルダにopaフォルダ作成、そこにAlpha値を変換した画像を
         /// png形式で保存
         /// </summary>
-        private void MyExe(IEnumerable<string> files)
+        private void MyExe(IEnumerable<string> files, MyOpe ope)
         {
             try
             {
@@ -144,7 +231,8 @@ namespace OpaOpaOpasity
                     {
                         SaveExe(file,
                             dir + "\\" + System.IO.Path.GetFileName(file),
-                            (byte)MySlider.Value);
+                            (byte)MySlider.Value,
+                            ope);
                     }
                 }
             }
@@ -161,11 +249,24 @@ namespace OpaOpaOpasity
         /// <param name="savePath"></param>
         /// <param name="alpha"></param>
         /// <returns></returns>
-        private bool SaveExe(string bmpPath, string savePath, byte alpha)
+        private bool SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
         {
             if (GetBitmap(bmpPath) is BitmapSource bmp)
             {
-                bmp = ChangeOpacity(bmp, alpha);
+                switch (ope)
+                {
+                    case MyOpe.Replace:
+                        bmp = AlphaReplace(bmp, alpha);
+                        break;
+                    case MyOpe.Add:
+                        bmp = AlphaAdd(bmp, alpha);
+                        break;
+                    case MyOpe.Subtract:
+                        bmp = AlphaSubtract(bmp, alpha);
+                        break;
+                    default:
+                        break;
+                }
                 SaveBitmapToPng(savePath, bmp);
                 return true;
             }
@@ -188,7 +289,26 @@ namespace OpaOpaOpasity
         /// <param name="bmp"></param>
         /// <param name="alpha"></param>
         /// <returns></returns>
-        private BitmapSource ChangeOpacity(BitmapSource bmp, byte alpha)
+        private BitmapSource AlphaReplace(BitmapSource bmp, byte alpha)
+        {
+            int w = bmp.PixelWidth;
+            int h = bmp.PixelHeight;
+            int stride = w * 4;
+            byte[] pixels = new byte[stride * h];
+            bmp.CopyPixels(pixels, stride, 0);
+            for (int i = 3; i < pixels.Length; i += 4)
+            {
+                //完全透明は変換しない
+                if (pixels[i] != 0)
+                {
+                    pixels[i] = alpha;
+                }
+            }
+            return BitmapSource.Create(w, h, bmp.DpiX, bmp.DpiY, PixelFormats.Bgra32, null, pixels, stride);
+        }
+
+        //足し算、255で飽和
+        private BitmapSource AlphaAdd(BitmapSource bmp, byte alpha)
         {
             int w = bmp.PixelWidth;
             int h = bmp.PixelHeight;
@@ -199,11 +319,45 @@ namespace OpaOpaOpasity
             {
                 if (pixels[i] != 0)
                 {
-                    pixels[i] = alpha;
+                    if (pixels[i] + alpha > 255)
+                    {
+                        pixels[i] = 255;
+                    }
+                    else
+                    {
+                        pixels[i] += alpha;
+                    }
                 }
             }
             return BitmapSource.Create(w, h, bmp.DpiX, bmp.DpiY, PixelFormats.Bgra32, null, pixels, stride);
         }
+
+        //引き算、0で飽和
+        private BitmapSource AlphaSubtract(BitmapSource bmp, byte alpha)
+        {
+            int w = bmp.PixelWidth;
+            int h = bmp.PixelHeight;
+            int stride = w * 4;
+            byte[] pixels = new byte[stride * h];
+            bmp.CopyPixels(pixels, stride, 0);
+            for (int i = 3; i < pixels.Length; i += 4)
+            {
+                if (pixels[i] != 0)
+                {
+                    if (pixels[i] - alpha < 0)
+                    {
+                        pixels[i] = 0;
+                    }
+                    else
+                    {
+                        pixels[i] -= alpha;
+                    }
+                }
+            }
+            return BitmapSource.Create(w, h, bmp.DpiX, bmp.DpiY, PixelFormats.Bgra32, null, pixels, stride);
+        }
+
+
 
         private BitmapSource? GetBitmap(string path)
         {
@@ -223,6 +377,8 @@ namespace OpaOpaOpasity
             return bmp;
         }
 
+        #region メインウィンドウボタンクリック
+
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
             MySlider.Value = 0.0;
@@ -239,20 +395,56 @@ namespace OpaOpaOpasity
         }
 
 
-        private void ButtonExe_Click(object sender, RoutedEventArgs e)
+        private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png"));
+            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Replace);
         }
 
-        private void Item_Click(object sender, RoutedEventArgs e)
+        private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe();
+            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Add);
         }
 
-        private void ButtonSelectedExe_Click(object sender, RoutedEventArgs e)
+        private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe();
+            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Subtract);
         }
+
+        private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Replace);
+        }
+
+        private void ButtonSelectedAdd_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Add);
+        }
+
+        private void ButtonSelectedSubtract_Click_4(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Subtract);
+        }
+        #endregion メインウィンドウボタンクリック
+
+        #region 右クリックメニュークリック
+
+        private void ItemReplace_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Replace);
+        }
+
+        private void ItemSubtract_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Subtract);
+        }
+
+        private void ItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedExe(MyOpe.Add);
+        }
+
+        #endregion 右クリックメニュークリック
+
     }
 
     public class MyConverter : IValueConverter
@@ -267,5 +459,10 @@ namespace OpaOpaOpasity
         {
             throw new NotImplementedException();
         }
+    }
+
+    public enum MyOpe
+    {
+        Replace = 0, Add, Subtract
     }
 }

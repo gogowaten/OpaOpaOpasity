@@ -5,8 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OpaOpaOpasity"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
-        AllowDrop="True">
+        Title="MainWindow" Height="650" Width="800"
+        AllowDrop="True"
+        ResizeMode="CanResizeWithGrip">
   <Window.Resources>
     <Style TargetType="Button">
       <Setter Property="Margin" Value="10,5,5,10"/>
@@ -31,26 +32,49 @@
           <RadioButton Content="不透明白" IsChecked="False"/>
         </StackPanel>
       </GroupBox>-->
-      <GroupBox Header="不透明度の設定" Margin="10">
+      <GroupBox Header="不透明度(Opacity)の指定" Margin="10">
         <StackPanel>
-          <TextBlock Text="{Binding ElementName=MySlider, Path=Value, StringFormat=Alpha \= {0}}" HorizontalAlignment="Center"/>
-          <TextBlock Text="{Binding ElementName=MySlider, Path=Value, Converter={StaticResource opa},
-        StringFormat=Opacity \= {0:0.00}}" HorizontalAlignment="Center"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+            <TextBlock Text="{Binding ElementName=MySlider,
+                                      Path=Value,
+                                      Converter={StaticResource opa},
+                                      StringFormat=Opacity \= {0:0.00}}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding ElementName=MySlider, Path=Value, StringFormat=(Alpha \= {0})}"
+                       HorizontalAlignment="Center" Margin="10,0,0,0"/>
+          </StackPanel>
           <Slider x:Name="MySlider" Minimum="0" Maximum="255" Value="255" IsSnapToTickEnabled="True" Margin="10,0,10,0"/>
           <UniformGrid Columns="3">
-            <Button Content="透明" Click="Button_Click_1"/>
-            <Button Content="半透明" Click="Button_Click_2"/>
-            <Button Content="不透明" Click="Button_Click_3"/>
+            <Button Content="0.0" Click="Button_Click_1"/>
+            <Button Content="0.5" Click="Button_Click_2"/>
+            <Button Content="1.0" Click="Button_Click_3"/>
           </UniformGrid>
         </StackPanel>
       </GroupBox>
-      <UniformGrid Columns="2">
-        <Button x:Name="MyButtonConvertSelected" Content="選択項目だけ変換" Click="ButtonSelectedExe_Click"/>
-        <Button x:Name="MyButtonConvertAll" Content="全部変換" Click="ButtonExe_Click"/>
+
+      <UniformGrid Columns="2" Margin="10,0,10,0">
+        <GroupBox Header="全部変換保存">
+          <StackPanel>
+            <Button x:Name="MyButtonConvertAll" Content="置き換え" Click="ButtonAllReplace_Click"/>
+            <Button Content="足し算" Click="ButtonAllAdd_Click"/>
+            <Button Content="引き算" Click="ButtonAllSubtract_Click"/>
+          </StackPanel>
+        </GroupBox>
+        <GroupBox Header="選択項目だけ変換保存">
+          <StackPanel>
+            <Button x:Name="MyButtonConvertSelected" Content="置き換え" Click="ButtonSelectedReplace_Click"/>
+            <Button Content="足し算" Click="ButtonSelectedAdd_Click"/>
+            <Button Content="引き算" Click="ButtonSelectedSubtract_Click_4"/>
+          </StackPanel>
+        </GroupBox>
       </UniformGrid>
+
       <ProgressBar x:Name="MyProgressBar" Height="2"/>
       <TextBlock Text="元画像"/>
-      <Image x:Name="MyImage" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="200"/>
+      <Grid x:Name="MyImageGrid" UseLayoutRounding="True">
+        <Image x:Name="MyImage" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="auto" 
+               RenderOptions.BitmapScalingMode="Fant"/>
+      </Grid>
     </StackPanel>
   </Grid>
 </Window>
