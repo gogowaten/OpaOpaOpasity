@@ -12,6 +12,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -213,27 +214,26 @@ namespace OpaOpaOpasity
 
 
 
-
         /// <summary>
-        /// 実行
-        /// 対象フォルダにopaフォルダ作成、そこにAlpha値を変換した画像を
-        /// png形式で保存
+        /// 対象フォルダにopaopaopasityフォルダ作成、そこにAlpha値を変換した画像をpng形式で保存
         /// </summary>
-        private void MyExe(IEnumerable<string> files, MyOpe ope)
+        /// <param name="files">対象画像ファイルリスト</param>
+        /// <param name="ope">アルファ値の計算方法</param>
+        private void MyExe(List<string> files, MyOpe ope)
         {
             try
             {
                 if (!string.IsNullOrEmpty(MyDirectory))
                 {
-                    string dir = System.IO.Path.Combine(MyDirectory, MY_FOlDER_NAME);// + "\\opa";
+                    string dir = System.IO.Path.Combine(MyDirectory, MY_FOlDER_NAME);
                     _ = Directory.CreateDirectory(dir);
-                    foreach (var file in files)
+                    byte alpha = (byte)MySlider.Value;
+                    Parallel.For(0, files.Count, async ii =>
                     {
-                        SaveExe(file,
-                            dir + "\\" + System.IO.Path.GetFileName(file),
-                            (byte)MySlider.Value,
-                            ope);
-                    }
+                        await SaveExe(files[ii], dir + "\\" + System.IO.Path.GetFileName(files[ii]),
+                              alpha,
+                              ope);
+                    });
                 }
             }
             catch (Exception ex)
@@ -242,14 +242,16 @@ namespace OpaOpaOpasity
             }
         }
 
+
         /// <summary>
-        /// 画像ファイルを指定Alphaに変換して保存
+        /// 画像ファイルを指定Alphaと計算して保存
         /// </summary>
-        /// <param name="bmpPath"></param>
-        /// <param name="savePath"></param>
-        /// <param name="alpha"></param>
+        /// <param name="bmpPath">画像ファイルパス</param>
+        /// <param name="savePath">保存パス</param>
+        /// <param name="alpha">アルファ値指定</param>
+        /// <param name="ope">アルファ値の計算方法指定</param>
         /// <returns></returns>
-        private bool SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
+        private async Task<bool> SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
         {
             if (GetBitmap(bmpPath) is BitmapSource bmp)
             {
@@ -267,7 +269,10 @@ namespace OpaOpaOpasity
                     default:
                         break;
                 }
-                SaveBitmapToPng(savePath, bmp);
+                await Task.Run(() =>
+                {
+                    SaveBitmapToPng(savePath, bmp);
+                });
                 return true;
             }
             return false;
@@ -282,6 +287,10 @@ namespace OpaOpaOpasity
             using FileStream stream = new(filename, FileMode.Create, FileAccess.Write);
             encoder.Save(stream);
         }
+
+        #region アルファ値変換
+
+
 
         /// <summary>
         /// すべてのピクセルを指定Alphaに変換。元のAlpha値が0だった場合は変換しない
@@ -356,7 +365,7 @@ namespace OpaOpaOpasity
             }
             return BitmapSource.Create(w, h, bmp.DpiX, bmp.DpiY, PixelFormats.Bgra32, null, pixels, stride);
         }
-
+        #endregion アルファ値変換
 
 
         private BitmapSource? GetBitmap(string path)
@@ -386,7 +395,7 @@ namespace OpaOpaOpasity
 
         private void Button_Click_2(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 128;
+            MySlider.Value = 127;
         }
 
         private void Button_Click_3(object sender, RoutedEventArgs e)
@@ -397,17 +406,17 @@ namespace OpaOpaOpasity
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Replace);
+            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Replace);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Add);
+            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Add);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png"), MyOpe.Subtract);
+            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Subtract);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
