@@ -29,16 +29,24 @@ namespace OpaOpaOpasity
     {
         private const string MY_APP_NAME = "OpaOpaOpacity(おぱおぱおぱしてぃ)";
         private const string MY_FOlDER_NAME = "opaopaopasity";
-        public string MyDirectory { get; private set; } = "";
+
+        public Data MyData { get; private set; } = new();
         public MainWindow()
         {
             InitializeComponent();
+
+#if DEBUG
+            this.Left = 100; this.Top = 100;
+#endif
+
+            DataContext = MyData;
+
             Title = MY_APP_NAME + GetAppVersion();
             SetMyImageGridBackground();
             MyButtonConvertAll.FontSize = FontSize * 1.5;
             MyButtonConvertSelected.FontSize = FontSize * 1.5;
 
-            DataContext = this;
+
             Drop += MainWindow_Drop;
             MyListBox.SelectionChanged += MyListBox_SelectionChanged;
 
@@ -153,13 +161,14 @@ namespace OpaOpaOpasity
         }
         #endregion 市松模様画像とブラシ作成
 
+        //
         private void SelectedExe(MyOpe ope)
         {
             List<string> files = new();
             foreach (var item in MyListBox.SelectedItems)
             {
                 string str = (string)item;
-                files.Add(System.IO.Path.Combine(MyDirectory, str));
+                files.Add(System.IO.Path.Combine(MyData.Dir, str));
             }
             MyExe(files, ope);
         }
@@ -168,12 +177,17 @@ namespace OpaOpaOpasity
         {
             if (MyListBox.SelectedItem is string fileName)
             {
-                string path = System.IO.Path.Combine(MyDirectory, fileName);
-                var bmp = GetBitmap(path);
-                MyImage.Source = bmp;
+                string path = System.IO.Path.Combine(MyData.Dir, fileName);
+                //var bmp = GetBitmap(path);
+                if(GetBitmapFromFilePath(path) is (BitmapSource bmp, byte[]))
+                {
+                    MyImage.Source = bmp;
+                }                
+                //MyImage.Source = bmp.Item1;
             }
         }
 
+        //ファイルドロップ時
         private void MainWindow_Drop(object sender, DragEventArgs e)
         {
             string[] ff = (string[])e.Data.GetData(DataFormats.FileDrop);
@@ -189,9 +203,10 @@ namespace OpaOpaOpasity
                     var dirr = System.IO.Path.GetDirectoryName(ff[0]);
                     if (Directory.Exists(dirr)) { dir = dirr; }
                 }
-                MyDirectory = dir;
-                MyTextBlockDir.Text = dir;
-                MyListBox.ItemsSource = GetFileNames(dir);
+                MyData.Dir = dir;
+                MyListBox.ItemsSource = GetImageFileNames(dir);
+                //MyListBox.ItemsSource = GetPngFileNames(dir);
+                GetImageFileNames(dir);
                 SetMyListBoxContextMenu();
             }
         }
@@ -202,13 +217,34 @@ namespace OpaOpaOpasity
         /// <param name="dir"></param>
         /// <returns></returns>
 
-        private List<string> GetFileNames(string dir)
+        //private List<string> GetPngFileNames(string dir)
+        //{
+        //    List<string> names = new();
+        //    foreach (var item in Directory.GetFiles(dir, "*.png"))
+        //    {
+        //        names.Add(System.IO.Path.GetFileName(item));
+        //    }
+        //    return names;
+        //}
+
+        private List<string> GetImageFileNames(string dir)
         {
+            List<string> paths = new();
+            paths.AddRange(Directory.GetFiles(dir, "*.png"));
+            paths.AddRange(Directory.GetFiles(dir, "*.jpg"));
+            paths.AddRange(Directory.GetFiles(dir, "*.jpeg"));
+            paths.AddRange(Directory.GetFiles(dir, "*.bmp"));
+            paths.AddRange(Directory.GetFiles(dir, "*.gif"));
+            paths.AddRange(Directory.GetFiles(dir, "*.tiff"));
+            paths.AddRange(Directory.GetFiles(dir, "*.wdp"));
+            paths.Sort();
+
             List<string> names = new();
-            foreach (var item in Directory.GetFiles(dir, "*.png"))
+            foreach (string path in paths)
             {
-                names.Add(System.IO.Path.GetFileName(item));
+                names.Add(System.IO.Path.GetFileName(path));
             }
+
             return names;
         }
 
@@ -223,9 +259,9 @@ namespace OpaOpaOpasity
         {
             try
             {
-                if (!string.IsNullOrEmpty(MyDirectory))
+                if (!string.IsNullOrEmpty(MyData.Dir))
                 {
-                    string dir = System.IO.Path.Combine(MyDirectory, MY_FOlDER_NAME);
+                    string dir = System.IO.Path.Combine(MyData.Dir, MY_FOlDER_NAME);
                     _ = Directory.CreateDirectory(dir);
                     byte alpha = (byte)MySlider.Value;
                     Parallel.For(0, files.Count, async ii =>
@@ -253,7 +289,7 @@ namespace OpaOpaOpasity
         /// <returns></returns>
         private async Task<bool> SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
         {
-            if (GetBitmap(bmpPath) is BitmapSource bmp)
+            if (GetBitmapFromFilePath(bmpPath) is (BitmapSource bmp, byte[]))
             {
                 switch (ope)
                 {
@@ -276,6 +312,30 @@ namespace OpaOpaOpasity
                 return true;
             }
             return false;
+            //if (GetBitmap(bmpPath) is BitmapSource bmp)
+            //{
+            //    switch (ope)
+            //    {
+            //        case MyOpe.Replace:
+            //            bmp = AlphaReplace(bmp, alpha);
+            //            break;
+            //        case MyOpe.Add:
+            //            bmp = AlphaAdd(bmp, alpha);
+            //            break;
+            //        case MyOpe.Subtract:
+            //            bmp = AlphaSubtract(bmp, alpha);
+            //            break;
+            //        default:
+            //            break;
+            //    }
+            //    await Task.Run(() =>
+            //    {
+            //        SaveBitmapToPng(savePath, bmp);
+            //    });
+            //    return true;
+            //}
+            //return false;
+
         }
 
         private void SaveBitmapToPng(string filename, BitmapSource bmp)
@@ -368,14 +428,37 @@ namespace OpaOpaOpasity
         #endregion アルファ値変換
 
 
-        private BitmapSource? GetBitmap(string path)
+        #region 画像を開く
+
+        /// <summary>
+        /// 画像ファイルとして開いて返す、エラーの場合はnullを返す
+        /// dpiは96に変換する、このときのピクセルフォーマットはbgra32
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        private (BitmapSource?, byte[]?) GetBitmapFromFilePath(string path)
         {
-            if (!File.Exists(path)) return null;
-            PngBitmapDecoder decoder = new(new Uri(path), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            BitmapSource bmp = decoder.Frames[0];
-            return ConverterBitmapFromatBgra32(bmp);
+            using FileStream stream = File.OpenRead(path);
+            BitmapSource bmp;
+            try
+            {
+                bmp = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                //BitmapSource bbb = ConverterBitmapFromatBgra32(bmp);
+                return ConverterBitmapDipWithPixels(ConverterBitmapFromatBgra32(bmp));
+                //return ConverterBitmapDpi96AndPixFormatBgra32(bmp);
+            }
+            catch (Exception)
+            {
+                return (null, null);
+            }
         }
 
+
+        /// <summary>
+        /// BitmapSourceのピクセルフォーマットをBgra32に変換するだけ
+        /// </summary>
+        /// <param name="bmp"></param>
+        /// <returns></returns>
         private static BitmapSource ConverterBitmapFromatBgra32(BitmapSource bmp)
         {
             if (bmp.Format != PixelFormats.Bgra32)
@@ -385,6 +468,37 @@ namespace OpaOpaOpasity
             }
             return bmp;
         }
+
+        /// <summary>
+        /// BitmapSourceのdpiを96に変換＋pixelsも返す、PixelFormatsBgra32専用
+        /// </summary>
+        /// <param name="bmp"></param>
+        /// <returns></returns>
+        private (BitmapSource, byte[]) ConverterBitmapDipWithPixels(BitmapSource bmp)
+        {
+            int w = bmp.PixelWidth;
+            int h = bmp.PixelHeight;
+            int stride = w * 4;
+            byte[] pixels = new byte[stride * h];
+            bmp.CopyPixels(pixels, stride, 0);
+            //png画像はdpi95.98とかの場合もあるけど、
+            //これは問題ないので変換しない
+            if (bmp.DpiX < 95.0 || 96.0 < bmp.DpiX)
+            {
+                bmp = BitmapSource.Create(w, h, 96.0, 96.0, bmp.Format, null, pixels, stride);
+            }
+            return (bmp, pixels);
+        }
+
+        //private BitmapSource? GetBitmap(string path)
+        //{
+        //    if (!File.Exists(path)) return null;
+        //    PngBitmapDecoder decoder = new(new Uri(path), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        //    BitmapSource bmp = decoder.Frames[0];
+        //    return ConverterBitmapFromatBgra32(bmp);
+        //}
+        #endregion 画像を開く
+
 
         #region メインウィンドウボタンクリック
 
@@ -406,17 +520,17 @@ namespace OpaOpaOpasity
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Replace);
+            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Replace);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Add);
+            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Add);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Subtract);
+            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Subtract);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
@@ -454,6 +568,11 @@ namespace OpaOpaOpasity
 
         #endregion 右クリックメニュークリック
 
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            var ddd = MyData;
+            var bbb = BindingOperations.GetBinding(TTT, TextBlock.TextProperty);
+        }
     }
 
     public class MyConverter : IValueConverter
