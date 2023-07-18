@@ -29,7 +29,7 @@ namespace OpaOpaOpasity
     public partial class MainWindow : Window
     {
         private const string MY_APP_NAME = "OpaOpaOpacity(おぱおぱおぱしてぃ)";
-        private const string MY_FOlDER_NAME = "opaopaopasity";
+        private const string MY_FOLDER_NAME = "opaopaopasity";
 
         public Data MyData { get; private set; } = new();
         public MainWindow()
@@ -163,16 +163,15 @@ namespace OpaOpaOpasity
         #endregion 市松模様画像とブラシ作成
 
         //選択項目だけ変換
-        private void SelectedExe(MyOpe ope)
+        private void SelectedImageSave(MyOpe ope)
         {
-            Collection<string> files = new();
+            Collection<string> fileNames = new();
             foreach (var item in MyListBox.SelectedItems)
             {
-                string str = (string)item;
-                files.Add(System.IO.Path.Combine(MyData.Dir, str));
+                fileNames.Add((string)item);
             }
-            //SavePngImage(files, ope);
-            SavePngImage(MyData.Dir, files, ope, MyData.Alpha);
+            SavePngImages(MyData.Dir, fileNames, ope, MyData.Alpha);
+
         }
 
         //選択項目変更で画像表示更新
@@ -181,7 +180,7 @@ namespace OpaOpaOpasity
             if (MyListBox.SelectedItem is string fileName)
             {
                 string path = System.IO.Path.Combine(MyData.Dir, fileName);
-                if (GetBitmapFromFilePath(path) is (BitmapSource bmp, byte[]))
+                if (GetBitmapBgra32Dpi96(path) is (BitmapSource bmp, byte[]))
                 {
                     MyData.Bitmap = bmp;
                 }
@@ -237,71 +236,51 @@ namespace OpaOpaOpasity
             return names;
         }
 
-
+        #region 画像変換して保存
 
         /// <summary>
         /// 対象フォルダにopaopaopasityフォルダ作成、そこにAlpha値を変換した画像をpng形式で保存
         /// </summary>
-        /// <param name="files">対象画像ファイルリスト</param>
+        /// <param name="originDir">元画像があるフォルダ</param>
+        /// <param name="fileName">元画像ファイル名、拡張子付き</param>
         /// <param name="ope">アルファ値の計算方法</param>
-        private void SavePngImage(string dir, Collection<string> files, MyOpe ope, byte alpha)
+        /// <param name="alpha">アルファ値</param>
+        private void EEE(string originDir, string fileName, MyOpe ope, byte alpha)
         {
-            try
+            if (GetAlphaChangeBitmap(
+                             System.IO.Path.Combine(originDir, fileName),
+                             alpha, ope) is BitmapSource bb)
             {
-                if (!string.IsNullOrEmpty(dir))
-                {
-                    string filePath = System.IO.Path.Combine(dir, MY_FOlDER_NAME);
-                    _ = Directory.CreateDirectory(filePath);
-                    Parallel.For(0, files.Count, async ii =>
-                    {
-                        await SaveExe(files[ii], filePath + "\\" + System.IO.Path.GetFileName(files[ii]),
-                            alpha,
-                              ope);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
+                string saveDir = System.IO.Path.Combine(originDir, MY_FOLDER_NAME);
+                SaveBitmapToPng(System.IO.Path.Combine(saveDir,
+                   System.IO.Path.GetFileNameWithoutExtension(fileName) + ".png"), bb);
             }
         }
-        //private void SavePngImage(List<string> files, MyOpe ope)
-        //{
-        //    try
-        //    {
-        //        if (!string.IsNullOrEmpty(MyData.Dir))
-        //        {
-        //            string dir = System.IO.Path.Combine(MyData.Dir, MY_FOlDER_NAME);
-        //            _ = Directory.CreateDirectory(dir);
-        //            Parallel.For(0, files.Count, async ii =>
-        //            {
-        //                await SaveExe(files[ii], dir + "\\" + System.IO.Path.GetFileName(files[ii]),
-        //                    MyData.Alpha,
-        //                      ope);
-        //            });
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        MessageBox.Show(ex.Message);
-        //    }
-        //}
 
 
-
-
+        private void SavePngImages(string originDir, Collection<string> fileNames, MyOpe ope, byte alpha)
+        {
+            //Parallel.For(0, fileNames.Count, async ii =>
+            //{
+            //    await Task.Run(() => { EEE(originDir, fileNames[ii], ope, alpha); });
+            //});
+            Parallel.For(0, fileNames.Count, iii =>
+            {
+                EEE(originDir, fileNames[iii], ope, alpha);
+            });
+        }
+       
 
         /// <summary>
-        /// 画像ファイルを指定Alphaと計算して保存
+        /// Bitmapのアルファ値を変換
         /// </summary>
-        /// <param name="filePath">画像ファイルパス</param>
-        /// <param name="savePath">保存パス</param>
-        /// <param name="alpha">アルファ値指定</param>
-        /// <param name="ope">アルファ値の計算方法指定</param>
+        /// <param name="imagePath">画像ファイルパス</param>
+        /// <param name="alpha">アルファ値</param>
+        /// <param name="ope">アルファ値計算方法</param>
         /// <returns></returns>
-        private async Task<bool> SaveExe(string filePath, string savePath, byte alpha, MyOpe ope)
+        private BitmapSource? GetAlphaChangeBitmap(string imagePath, byte alpha, MyOpe ope)
         {
-            if (GetBitmapFromFilePath(filePath) is (BitmapSource bmp, byte[]))
+            if (GetBitmapBgra32Dpi96(imagePath) is (BitmapSource bmp, byte[]))
             {
                 switch (ope)
                 {
@@ -317,53 +296,30 @@ namespace OpaOpaOpasity
                     default:
                         break;
                 }
-                await Task.Run(() =>
-                {
-                    SaveBitmapToPng(savePath, bmp);
-                });
-                return true;
+                return bmp;
             }
-            return false;
-            //if (GetBitmap(bmpPath) is BitmapSource bmp)
-            //{
-            //    switch (ope)
-            //    {
-            //        case MyOpe.Replace:
-            //            bmp = AlphaReplace(bmp, alpha);
-            //            break;
-            //        case MyOpe.Add:
-            //            bmp = AlphaAdd(bmp, alpha);
-            //            break;
-            //        case MyOpe.Subtract:
-            //            bmp = AlphaSubtract(bmp, alpha);
-            //            break;
-            //        default:
-            //            break;
-            //    }
-            //    await Task.Run(() =>
-            //    {
-            //        SaveBitmapToPng(savePath, bmp);
-            //    });
-            //    return true;
-            //}
-            //return false;
+            return null;
 
         }
 
-        private void SaveBitmapToPng(string filename, BitmapSource bmp)
+
+        /// <summary>
+        /// png形式で保存する
+        /// </summary>
+        /// <param name="fullPath">フルパス</param>
+        /// <param name="bmp">画像</param>
+        private static void SaveBitmapToPng(string fullPath, BitmapSource bmp)
         {
             BitmapMetadata metadata = new("png");
             metadata.SetQuery("/tEXt/Software", MY_APP_NAME);
             PngBitmapEncoder encoder = new();
             encoder.Frames.Add(BitmapFrame.Create(bmp, null, metadata, null));
-            using FileStream stream = new(filename, FileMode.Create, FileAccess.Write);
+            using FileStream stream = new(fullPath, FileMode.Create, FileAccess.Write, FileShare.Write);
             encoder.Save(stream);
         }
+        #endregion 画像変換して保存
 
         #region アルファ値変換
-
-
-
         /// <summary>
         /// すべてのピクセルを指定Alphaに変換。元のAlpha値が0だった場合は変換しない
         /// </summary>
@@ -443,21 +399,20 @@ namespace OpaOpaOpasity
         #region 画像を開く
 
         /// <summary>
+        /// 画像ファイルパスからBitmap取得
+        /// PixelformatBgra32＋dpi96で画像取得
         /// 画像ファイルとして開いて返す、エラーの場合はnullを返す
-        /// dpiは96に変換する、このときのピクセルフォーマットはbgra32
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        private (BitmapSource?, byte[]?) GetBitmapFromFilePath(string path)
+        private (BitmapSource?, byte[]?) GetBitmapBgra32Dpi96(string path)
         {
             using FileStream stream = File.OpenRead(path);
             BitmapSource bmp;
             try
             {
                 bmp = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-                //BitmapSource bbb = ConverterBitmapFromatBgra32(bmp);
                 return ConverterBitmapDipWithPixels(ConverterBitmapFromatBgra32(bmp));
-                //return ConverterBitmapDpi96AndPixFormatBgra32(bmp);
             }
             catch (Exception)
             {
@@ -532,35 +487,32 @@ namespace OpaOpaOpasity
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
-            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Replace);
+            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
-            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Add);
+            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
-            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Subtract);
+            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Replace);
+            SelectedImageSave(MyOpe.Replace);
         }
 
         private void ButtonSelectedAdd_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Add);
+            SelectedImageSave(MyOpe.Add);
         }
 
         private void ButtonSelectedSubtract_Click_4(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Subtract);
+            SelectedImageSave(MyOpe.Subtract);
         }
         #endregion メインウィンドウボタンクリック
 
@@ -568,17 +520,17 @@ namespace OpaOpaOpasity
 
         private void ItemReplace_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Replace);
+            SelectedImageSave(MyOpe.Replace);
         }
 
         private void ItemSubtract_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Subtract);
+            SelectedImageSave(MyOpe.Subtract);
         }
 
         private void ItemAdd_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Add);
+            SelectedImageSave(MyOpe.Add);
         }
 
         #endregion 右クリックメニュークリック
