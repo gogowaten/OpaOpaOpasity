@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace OpaOpaOpasity
 {
@@ -26,6 +27,15 @@ namespace OpaOpaOpasity
         //対象ファイル名リスト
         private ObservableCollection<string> fileList = new();
         public ObservableCollection<string> FileList { get => fileList; set => SetProperty(ref fileList, value); }
+
+        //元画像
+        private BitmapSource? bitmap;
+        public BitmapSource? Bitmap { get => bitmap; set => SetProperty(ref bitmap, value); }
+
+        //アルファ値
+        private byte alpha = 255;
+        public byte Alpha { get => alpha; set => SetProperty(ref alpha, value); }
+
 
     }
 }

@@ -16,6 +16,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Collections.ObjectModel;
 
 //半透明のpng画像を不透明に変換保存するアプリ、OpaOpaOpasityできた - 午後わてんのブログ
 //https://gogowaten.hatenablog.com/entry/2023/06/26/200756
@@ -161,29 +162,29 @@ namespace OpaOpaOpasity
         }
         #endregion 市松模様画像とブラシ作成
 
-        //
+        //選択項目だけ変換
         private void SelectedExe(MyOpe ope)
         {
-            List<string> files = new();
+            Collection<string> files = new();
             foreach (var item in MyListBox.SelectedItems)
             {
                 string str = (string)item;
                 files.Add(System.IO.Path.Combine(MyData.Dir, str));
             }
-            MyExe(files, ope);
+            //SavePngImage(files, ope);
+            SavePngImage(MyData.Dir, files, ope, MyData.Alpha);
         }
 
+        //選択項目変更で画像表示更新
         private void MyListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (MyListBox.SelectedItem is string fileName)
             {
                 string path = System.IO.Path.Combine(MyData.Dir, fileName);
-                //var bmp = GetBitmap(path);
-                if(GetBitmapFromFilePath(path) is (BitmapSource bmp, byte[]))
+                if (GetBitmapFromFilePath(path) is (BitmapSource bmp, byte[]))
                 {
-                    MyImage.Source = bmp;
-                }                
-                //MyImage.Source = bmp.Item1;
+                    MyData.Bitmap = bmp;
+                }
             }
         }
 
@@ -204,29 +205,17 @@ namespace OpaOpaOpasity
                     if (Directory.Exists(dirr)) { dir = dirr; }
                 }
                 MyData.Dir = dir;
-                MyListBox.ItemsSource = GetImageFileNames(dir);
-                //MyListBox.ItemsSource = GetPngFileNames(dir);
+                MyData.FileList = new ObservableCollection<string>(GetImageFileNames(dir));
                 GetImageFileNames(dir);
                 SetMyListBoxContextMenu();
             }
         }
 
         /// <summary>
-        /// 指定フォルダの中のpngファイルだけのリストを返す
+        /// 指定フォルダの中の画像ファイルリストを返す、判定は拡張子
         /// </summary>
         /// <param name="dir"></param>
         /// <returns></returns>
-
-        //private List<string> GetPngFileNames(string dir)
-        //{
-        //    List<string> names = new();
-        //    foreach (var item in Directory.GetFiles(dir, "*.png"))
-        //    {
-        //        names.Add(System.IO.Path.GetFileName(item));
-        //    }
-        //    return names;
-        //}
-
         private List<string> GetImageFileNames(string dir)
         {
             List<string> paths = new();
@@ -255,19 +244,18 @@ namespace OpaOpaOpasity
         /// </summary>
         /// <param name="files">対象画像ファイルリスト</param>
         /// <param name="ope">アルファ値の計算方法</param>
-        private void MyExe(List<string> files, MyOpe ope)
+        private void SavePngImage(string dir, Collection<string> files, MyOpe ope, byte alpha)
         {
             try
             {
-                if (!string.IsNullOrEmpty(MyData.Dir))
+                if (!string.IsNullOrEmpty(dir))
                 {
-                    string dir = System.IO.Path.Combine(MyData.Dir, MY_FOlDER_NAME);
-                    _ = Directory.CreateDirectory(dir);
-                    byte alpha = (byte)MySlider.Value;
+                    string filePath = System.IO.Path.Combine(dir, MY_FOlDER_NAME);
+                    _ = Directory.CreateDirectory(filePath);
                     Parallel.For(0, files.Count, async ii =>
                     {
-                        await SaveExe(files[ii], dir + "\\" + System.IO.Path.GetFileName(files[ii]),
-                              alpha,
+                        await SaveExe(files[ii], filePath + "\\" + System.IO.Path.GetFileName(files[ii]),
+                            alpha,
                               ope);
                     });
                 }
@@ -277,19 +265,43 @@ namespace OpaOpaOpasity
                 MessageBox.Show(ex.Message);
             }
         }
+        //private void SavePngImage(List<string> files, MyOpe ope)
+        //{
+        //    try
+        //    {
+        //        if (!string.IsNullOrEmpty(MyData.Dir))
+        //        {
+        //            string dir = System.IO.Path.Combine(MyData.Dir, MY_FOlDER_NAME);
+        //            _ = Directory.CreateDirectory(dir);
+        //            Parallel.For(0, files.Count, async ii =>
+        //            {
+        //                await SaveExe(files[ii], dir + "\\" + System.IO.Path.GetFileName(files[ii]),
+        //                    MyData.Alpha,
+        //                      ope);
+        //            });
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MessageBox.Show(ex.Message);
+        //    }
+        //}
+
+
+
 
 
         /// <summary>
         /// 画像ファイルを指定Alphaと計算して保存
         /// </summary>
-        /// <param name="bmpPath">画像ファイルパス</param>
+        /// <param name="filePath">画像ファイルパス</param>
         /// <param name="savePath">保存パス</param>
         /// <param name="alpha">アルファ値指定</param>
         /// <param name="ope">アルファ値の計算方法指定</param>
         /// <returns></returns>
-        private async Task<bool> SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
+        private async Task<bool> SaveExe(string filePath, string savePath, byte alpha, MyOpe ope)
         {
-            if (GetBitmapFromFilePath(bmpPath) is (BitmapSource bmp, byte[]))
+            if (GetBitmapFromFilePath(filePath) is (BitmapSource bmp, byte[]))
             {
                 switch (ope)
                 {
@@ -504,33 +516,36 @@ namespace OpaOpaOpasity
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 0.0;
+            MyData.Alpha = 0;
         }
 
         private void Button_Click_2(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 127;
+            MyData.Alpha = 127;
         }
 
         private void Button_Click_3(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 255;
+            MyData.Alpha = 255;
         }
 
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Replace);
+            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
+            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Replace);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Add);
+            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
+            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Add);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Subtract);
+            SavePngImage(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
+            //SavePngImage(Directory.GetFiles(MyData.Dir, "*.png").ToList(), MyOpe.Subtract);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
@@ -579,8 +594,8 @@ namespace OpaOpaOpasity
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            double dd = (double)value;
-            return dd / 255;
+            byte dd = (byte)value;
+            return dd / 255.0;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

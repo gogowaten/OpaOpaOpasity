@@ -21,7 +21,8 @@
       <ColumnDefinition/>
     </Grid.ColumnDefinitions>
 
-    <ListBox x:Name="MyListBox" SelectionMode="Extended"/>
+    <ListBox x:Name="MyListBox" SelectionMode="Extended"
+             ItemsSource="{Binding FileList}"/>
 
     <StackPanel Grid.Column="1">
       <TextBlock Text="対象フォルダ"/>
@@ -29,7 +30,8 @@
       <TextBlock Text="元画像"/>
       <Grid x:Name="MyImageGrid" UseLayoutRounding="True" Height="200">
         <Image x:Name="MyImage" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="auto" 
-               RenderOptions.BitmapScalingMode="Fant"/>
+               RenderOptions.BitmapScalingMode="Fant"
+               Source="{Binding Bitmap}"/>
       </Grid>
       <Button Content="check" Click="Button_Click"/>
       <TabControl Grid.Column="1">
@@ -45,15 +47,14 @@
             <GroupBox Header="不透明度(Opacity)の指定" Margin="10">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                  <TextBlock Text="{Binding ElementName=MySlider,
-                                      Path=Value,
+                  <TextBlock Text="{Binding Alpha,
                                       Converter={StaticResource opa},
                                       StringFormat=Opacity \= {0:0.00}}"
                        HorizontalAlignment="Center"/>
-                  <TextBlock Text="{Binding ElementName=MySlider, Path=Value, StringFormat=(Alpha \= {0})}"
+                  <TextBlock Text="{Binding Alpha, StringFormat=(Alpha \= {0})}"
                        HorizontalAlignment="Center" Margin="10,0,0,0"/>
                 </StackPanel>
-                <Slider x:Name="MySlider" Minimum="0" Maximum="255" Value="255" IsSnapToTickEnabled="True" Margin="10,0,10,0"/>
+                <Slider Value="{Binding Alpha}" Minimum="0" Maximum="255" IsSnapToTickEnabled="True" Margin="10,0,10,0"/>
                 <UniformGrid Columns="3">
                   <Button Content="0.0" Click="Button_Click_1"/>
                   <Button Content="0.5" Click="Button_Click_2"/>
@@ -77,8 +78,8 @@
                   <Button Content="引き算" Click="ButtonSelectedSubtract_Click_4"/>
                 </StackPanel>
               </GroupBox>
-            </UniformGrid>            
-            
+            </UniformGrid>
+
           </StackPanel>
         </TabItem>
         <TabItem Header="色変更">
@@ -87,6 +88,6 @@
       </TabControl>
 
     </StackPanel>
-    
+
   </Grid>
 </Window>
