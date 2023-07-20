@@ -15,4 +15,10 @@
     <Content Include="opasity512.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="ControlLibraryCore20200620">
+      <HintPath>..\..\userControl\ControlLibraryCore20200620\ControlLibraryCore20200620\bin\Release\net6.0-windows\publish\ControlLibraryCore20200620.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>
