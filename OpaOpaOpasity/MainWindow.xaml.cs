@@ -173,7 +173,7 @@ namespace OpaOpaOpasity
             {
                 fileNames.Add((string)item);
             }
-            SavePngImages(MyData.Dir, fileNames, ope, MyData.Alpha);
+            AlphaChangeAndSaveImages(MyData.Dir, fileNames, ope, MyData.Alpha);
 
         }
 
@@ -186,6 +186,7 @@ namespace OpaOpaOpasity
                 if (GetBitmapBgra32Dpi96(path) is (BitmapSource bmp, byte[]))
                 {
                     MyData.Bitmap = bmp;
+                    MyData.BitmapPre = null;
                 }
             }
         }
@@ -272,8 +273,8 @@ namespace OpaOpaOpasity
             }
         }
 
-
-        private void SavePngImages(string originDir, Collection<string> fileNames, MyOpe ope, byte alpha)
+        //保存フォルダを作成してそこにアルファ値変換した画像を保存
+        private void AlphaChangeAndSaveImages(string originDir, Collection<string> fileNames, MyOpe ope, byte alpha)
         {
             string saveDir = System.IO.Path.Combine(originDir, MY_FOLDER_NAME);
             Directory.CreateDirectory(saveDir);
@@ -480,7 +481,77 @@ namespace OpaOpaOpasity
         //}
         #endregion 画像を開く
 
+
+        #region 色変換保存
+        //保存フォルダを作成してそこに色変換した画像を保存
+        private void ColorChangeAndSaveImages(string originDir, Collection<string> fileNames)
+        {
+            string saveDir = System.IO.Path.Combine(originDir, MY_FOLDER_NAME);
+            Directory.CreateDirectory(saveDir);
+
+            Parallel.For(0, fileNames.Count, iii =>
+            {
+                EEE2(originDir, saveDir, fileNames[iii]);
+            });
+        }
+
+
+        /// <summary>
+        /// 対象フォルダにopaopaopasityフォルダ作成、そこに色変換した画像をpng形式で保存
+        /// </summary>
+        /// <param name="originDir">元画像があるフォルダ</param>
+        /// <param name="saveDir">保存フォルダパス</param>
+        /// <param name="fileName">元画像ファイル名、拡張子付き</param>
+        private void EEE2(string originDir, string saveDir, string fileName)
+        {
+            string imagePath = System.IO.Path.Combine(originDir, fileName);
+            (BitmapSource? bitmap, _) = GetBitmapBgra32Dpi96(imagePath);
+            bitmap = ChangeColor(bitmap);
+            if (bitmap != null)
+            {
+                SaveBitmapToPng(
+                    System.IO.Path.Combine(saveDir,
+                    System.IO.Path.GetFileNameWithoutExtension(fileName) + ".png"), bitmap);
+            }
+        }
+
+
+        #endregion 色変換保存
+
         #region 色変換
+
+
+        private BitmapSource? ChangeColor(BitmapSource? bmp)
+        {
+            if (bmp == null) return null;
+            int wi = bmp.PixelWidth;
+            int hi = bmp.PixelHeight;
+            int stride = wi * 4;
+            byte[] pixels = new byte[hi * stride];
+            bmp.CopyPixels(pixels, stride, 0);
+
+            for (int i = 0; i < pixels.Length; i += 4)
+            {
+                byte b = pixels[i];
+                byte g = pixels[i + 1];
+                byte r = pixels[i + 2];
+                byte a = pixels[i + 3];
+                if (a != 0)
+                {
+                    var (h, s, v) = MathHSV.RGB2hsv(r, g, b);
+                    if (CheckIsArea(h, s, v))
+                    {
+                        (byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
+                        pixels[i] = bb;
+                        pixels[i + 1] = gg;
+                        pixels[i + 2] = rr;
+                    }
+                }
+            }
+            var bbb = BitmapSource.Create(wi, hi, 96.0, 96.0, bmp.Format, null, pixels, stride);
+            return bbb;
+        }
+
         /// <summary>
         /// HSVの変換対象範囲判定、hsvの値は範囲に入っているのかどうか
         /// </summary>
@@ -517,39 +588,6 @@ namespace OpaOpaOpasity
             }
         }
 
-
-        private BitmapSource? ChangeColor(BitmapSource? bmp)
-        {
-            if (bmp == null) return null;
-            int wi = bmp.PixelWidth;
-            int hi = bmp.PixelHeight;
-            int stride = wi * 4;
-            byte[] pixels = new byte[hi * stride];
-            bmp.CopyPixels(pixels, stride, 0);
-
-            for (int i = 0; i < pixels.Length; i += 4)
-            {
-                byte b = pixels[i];
-                byte g = pixels[i + 1];
-                byte r = pixels[i + 2];
-                byte a = pixels[i + 3];
-                if (a != 0)
-                {
-                    var (h, s, v) = MathHSV.RGB2hsv(r, g, b);
-                    if (CheckIsArea(h, s, v))
-                    {
-                        //HSV hsv = new(GetNewHue(h), GetNewSat(s), GetNewLum(v));
-                        //var rgb = MathHSV.HSV2rgb(hsv);                        
-                        (byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
-                        pixels[i] = bb;
-                        pixels[i + 1] = gg;
-                        pixels[i + 2] = rr;
-                    }
-                }
-            }
-            var bbb = BitmapSource.Create(wi, hi, 96.0, 96.0, bmp.Format, null, pixels, stride);
-            return bbb;
-        }
 
         private double GetNewHue(double hue)
         {
@@ -618,17 +656,17 @@ namespace OpaOpaOpasity
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            SavePngImages(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
@@ -678,7 +716,16 @@ namespace OpaOpaOpasity
             MyData.BitmapPre = ChangeColor(MyData.Bitmap);
         }
 
+        private void ButtonChangeColorAll_Click(object sender, RoutedEventArgs e)
+        {
+            ColorChangeAndSaveImages(MyData.Dir, MyData.FileList);
+        }
 
+        private void ButtonChangeColorSelected_Click(object sender, RoutedEventArgs e)
+        {
+            Collection<string> list = new(MyListBox.SelectedItems.Cast<string>().ToArray());
+            ColorChangeAndSaveImages(MyData.Dir, list);
+        }
     }
 
 

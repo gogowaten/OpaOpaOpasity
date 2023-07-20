@@ -138,9 +138,11 @@
                   </StackPanel>
                 </StackPanel>
               </GroupBox>
-              
-              <Button Content="convert" Click="ButtonConvertColor_Click"/>
-              
+              <UniformGrid>
+              <Button Content="preview" Click="ButtonConvertColor_Click"/>
+              <Button Content="convertAll" Click="ButtonChangeColorAll_Click"/>
+              <Button Content="convertSelected" Click="ButtonChangeColorSelected_Click"/>
+              </UniformGrid>
               <GroupBox Header="色相変換">
                 <DockPanel>
                   <RadioButton Content="加算" IsChecked="{Binding IsHueAdd}"/>
