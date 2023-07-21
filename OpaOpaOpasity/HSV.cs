@@ -215,6 +215,117 @@ namespace OpaOpaOpasity
             Color color = HSV2Color(h, s, v);
             return (color.R, color.G, color.B);
         }
+
+        public static (byte r, byte g, byte b) Hsv2rgb3(double h, double s, double v)
+        {
+            double rr, gg, bb;
+            double c = v*s;
+            
+            double x = v - (s * v);
+            double diff = c - x;
+
+            if (0.0 <= h && h < 60)
+            {
+                rr = c;
+                gg = x + (diff * h / 60);
+                gg = x + (h / 60 * diff);
+                bb = x;
+            }
+            else if (60 >= h && h < 120)
+            {
+                rr = x + ((120 - h) / 60 * diff);
+                gg = c;
+                bb = x;
+            }
+            else if (120 >= h && h < 180)
+            {
+                rr = x;
+                gg = c;
+                bb = x + ((h - 120) / 60 * diff);
+            }
+            else if (180 >= h && h < 240)
+            {
+                rr = x;
+                gg = x + ((240 - h) / 60 * diff);
+                bb = c;
+            }
+            else if (240 >= h && h < 300)
+            {
+                rr = x + ((h - 240) / 60 * diff);
+                gg = x;
+                bb = c;
+            }
+            else if (300 >= h && h < 360)
+            {
+                rr = c;
+                gg = x;
+                bb = x + ((360 - h) / 60 * diff);
+            }
+            else
+            {
+                rr = 0; gg = 0; bb = 0;
+            }
+            rr = Math.Round(rr * 255, MidpointRounding.AwayFromZero);
+            gg = Math.Round(gg * 255, MidpointRounding.AwayFromZero);
+            bb = Math.Round(bb * 255, MidpointRounding.AwayFromZero);
+            return ((byte)rr, (byte)gg, (byte)bb);
+        }
+        public static (byte r, byte g, byte b) Hsv2rgb2(double h, double s, double v)
+        {
+            double rr, gg, bb;
+            double max = v;
+            //double min = v * (1.0 - s);//下と同じ意味
+            double min = v - (s * v);
+            double diff = max - min;
+
+            if (0.0 <= h && h < 60)
+            {
+                rr = max;
+                gg = min + (diff * h / 60);
+                gg = min + (h / 60 * diff);
+                bb = min;
+            }
+            else if (60 >= h && h < 120)
+            {
+                rr = min + ((120 - h) / 60 * diff);
+                gg = max;
+                bb = min;
+            }
+            else if (120 >= h && h < 180)
+            {
+                rr = min;
+                gg = max;
+                bb = min + ((h - 120) / 60 * diff);
+            }
+            else if (180 >= h && h < 240)
+            {
+                rr = min;
+                gg = min + ((240 - h) / 60 * diff);
+                bb = max;
+            }
+            else if (240 >= h && h < 300)
+            {
+                rr = min + ((h - 240) / 60 * diff);
+                gg = min;
+                bb = max;
+            }
+            else if (300 >= h && h < 360)
+            {
+                rr = max;
+                gg = min;
+                bb = min + ((360 - h) / 60 * diff);
+            }
+            else
+            {
+                rr = 0; gg = 0; bb = 0;
+            }
+            rr = Math.Round(rr * 255, MidpointRounding.AwayFromZero);
+            gg = Math.Round(gg * 255, MidpointRounding.AwayFromZero);
+            bb = Math.Round(bb * 255, MidpointRounding.AwayFromZero);
+            return ((byte)rr, (byte)gg, (byte)bb);
+        }
+
+        
         public static (byte r, byte g, byte b) HSV2rgb(HSV hsv)
         {
             Color color = HSV2Color(hsv.H, hsv.S, hsv.V);
@@ -242,13 +353,13 @@ namespace OpaOpaOpasity
         /// <returns>Color</returns>
         public static Color HSV2Color(double h, double s, double v)
         {
-            h = h % 360f / 60f;
-            double r = v, g = v, b = v;
-
             if (v == 0) { return Color.FromRgb(0, 0, 0); }
 
+            h = h % 360f / 60f;
+            double r = v, g = v, b = v;
             int i = (int)Math.Floor(h);
             double d = h - i;
+
             if (h < 1)
             {
                 g *= 1f - s * (1f - d);

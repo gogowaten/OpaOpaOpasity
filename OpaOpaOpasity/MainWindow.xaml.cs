@@ -541,7 +541,9 @@ namespace OpaOpaOpasity
                     var (h, s, v) = MathHSV.RGB2hsv(r, g, b);
                     if (CheckIsArea(h, s, v))
                     {
-                        (byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
+                        var lum = GetNewLum(v);
+                        (byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb2(GetNewHue(h), GetNewSat(s), GetNewLum(v));
+                        //(byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
                         pixels[i] = bb;
                         pixels[i + 1] = gg;
                         pixels[i + 2] = rr;
@@ -626,7 +628,17 @@ namespace OpaOpaOpasity
 
         public static double FixHue(double hue)
         {
-            return hue < 0.0 ? 0.0 : hue > 360.0 ? 360.0 : hue;
+            if (hue < 0)
+            {
+                return 360.0 + hue;
+            }
+            else if (hue > 360.0)
+            {
+                return hue - 360.0;
+            }
+            else return hue;
+            //return hue < 0.0 ? 0.0 : hue > 360.0 ? 360.0 : hue;
+
         }
         public static double FixSatOrLum(double value)
         {

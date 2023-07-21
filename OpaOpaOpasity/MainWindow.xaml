@@ -7,7 +7,7 @@
         xmlns:nume="clr-namespace:ControlLibraryCore20200620;assembly=ControlLibraryCore20200620"
         d:DataContext="{d:DesignInstance Type=local:Data}"
         mc:Ignorable="d"
-        Title="MainWindow" Height="650" Width="800"
+        Title="MainWindow" Height="750" Width="800"
         AllowDrop="True"
         ResizeMode="CanResizeWithGrip">
   <Window.Resources>
