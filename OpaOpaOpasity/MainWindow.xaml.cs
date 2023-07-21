@@ -36,6 +36,7 @@ namespace OpaOpaOpasity
         {
             InitializeComponent();
 
+
 #if DEBUG
             this.Left = 100; this.Top = 100;
 #endif
@@ -538,11 +539,10 @@ namespace OpaOpaOpasity
                 byte a = pixels[i + 3];
                 if (a != 0)
                 {
-                    var (h, s, v) = MathHSV.RGB2hsv(r, g, b);
-                    if (CheckIsArea(h, s, v))
+                    var (h, s, l) = MathHSV.RGB2hsv(r, g, b);
+                    if (CheckIsArea(h, s, l))
                     {
-                        var lum = GetNewLum(v);
-                        (byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb2(GetNewHue(h), GetNewSat(s), GetNewLum(v));
+                        (byte rr, byte gg, byte bb) = MathHSL.Hsl2Rgb(GetNewHue(h), GetNewSat(s), GetNewLum(l));
                         //(byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
                         pixels[i] = bb;
                         pixels[i + 1] = gg;
@@ -561,7 +561,7 @@ namespace OpaOpaOpasity
         /// <param name="g"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        private bool CheckIsArea(double h, double s, double v)
+        private bool CheckIsArea(double h, double s, double l)
         {
             if (!CheckAreaHSV(MyData.HueMin, MyData.HueMax, h))
             {
@@ -571,7 +571,7 @@ namespace OpaOpaOpasity
             {
                 return false;
             }
-            else if (!CheckAreaHSV(MyData.LumMin, MyData.LumMax, v))
+            else if (!CheckAreaHSV(MyData.LumMin, MyData.LumMax, l))
             {
                 return false;
             }
