@@ -220,8 +220,8 @@ namespace OpaOpaOpasity
         {
             double rr, gg, bb;
             double c = v*s;
-            
-            double x = v - (s * v);
+
+            double x = c * (1 - (h / 60) % 2 - 1);
             double diff = c - x;
 
             if (0.0 <= h && h < 60)
