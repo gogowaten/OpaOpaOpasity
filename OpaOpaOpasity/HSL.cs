@@ -37,6 +37,8 @@ namespace OpaOpaOpasity
             {
                 //未定義
                 h = 0.0; s = 0.0;
+                //
+                //h = 360.0;s = 0.0;
             }
             //有彩色
             else

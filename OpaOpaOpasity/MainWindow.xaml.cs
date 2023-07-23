@@ -423,6 +423,8 @@ namespace OpaOpaOpasity
         /// <returns></returns>
         private (BitmapSource?, byte[]?) GetBitmapBgra32Dpi96(string path)
         {
+            if (File.Exists(path) == false) { return (null, null); }
+
             using FileStream stream = File.OpenRead(path);
             BitmapSource bmp;
             try
@@ -539,11 +541,10 @@ namespace OpaOpaOpasity
                 byte a = pixels[i + 3];
                 if (a != 0)
                 {
-                    var (h, s, l) = MathHSV.RGB2hsv(r, g, b);
+                    var (h, s, l) = MathHSL.Rgb2Hsl(r, g, b);
                     if (CheckIsArea(h, s, l))
                     {
                         (byte rr, byte gg, byte bb) = MathHSL.Hsl2Rgb(GetNewHue(h), GetNewSat(s), GetNewLum(l));
-                        //(byte rr, byte gg, byte bb) = MathHSV.Hsv2rgb(GetNewHue(h), GetNewSat(s), GetNewLum(v));
                         pixels[i] = bb;
                         pixels[i + 1] = gg;
                         pixels[i + 2] = rr;
