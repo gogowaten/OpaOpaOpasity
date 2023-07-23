@@ -101,79 +101,81 @@
 
           <TabItem Header="色変更">
             <StackPanel>
-              <GroupBox Header="範囲指定">
-                <GroupBox.Resources>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="VerticalAlignment" Value="Center"/>
-                  </Style>
-                </GroupBox.Resources>
-                <StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="色相"/>
-                    <nume:NumericUpDown x:Name="NumeHueMin" MyStringFormat="下限 000"
+              <StackPanel Orientation="Horizontal">
+                <GroupBox Header="範囲指定">
+                  <GroupBox.Resources>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="VerticalAlignment" Value="Center"/>
+                    </Style>
+                  </GroupBox.Resources>
+                  <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="色相(H) "/>
+                      <nume:NumericUpDown x:Name="NumeHueMin" MyStringFormat="下限 000"
                               MyMinValue="0" MyMaxValue="360"
                               MyValue="{Binding HueMin}"/>
-                    <TextBlock Text="から"/>
-                    <nume:NumericUpDown x:Name="NumeHueMax" MyStringFormat="上限 000" 
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown x:Name="NumeHueMax" MyStringFormat="上限 000" 
                               MyMinValue="0" MyMaxValue="360"
                               MyValue="{Binding HueMax}"/>
-                  </StackPanel>
+                    </StackPanel>
 
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="彩度"/>
-                    <nume:NumericUpDown Name="NumeSatMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="彩度(S) "/>
+                      <nume:NumericUpDown Name="NumeSatMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
                               MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding SatMin}"/>
-                    <TextBlock Text="から"/>
-                    <nume:NumericUpDown Name="NumeSatMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown Name="NumeSatMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
                               MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding SatMax}"/>
-                  </StackPanel>
+                    </StackPanel>
 
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="明度"/>
-                    <nume:NumericUpDown Name="NumeLumMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="明度(L) "/>
+                      <nume:NumericUpDown Name="NumeLumMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
                               MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding LumMin}"/>
-                    <TextBlock Text="から"/>
-                    <nume:NumericUpDown Name="NumeLumMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown Name="NumeLumMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
                               MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding LumMax}"/>
+                    </StackPanel>
                   </StackPanel>
-                </StackPanel>
-              </GroupBox>
-              <UniformGrid>
-              <Button Content="preview" Click="ButtonConvertColor_Click"/>
-              <Button Content="convertAll" Click="ButtonChangeColorAll_Click"/>
-              <Button Content="convertSelected" Click="ButtonChangeColorSelected_Click"/>
-              </UniformGrid>
-              <GroupBox Header="色相変換">
-                <DockPanel>
-                  <RadioButton Content="加算" IsChecked="{Binding IsHueAdd}"/>
-                  <RadioButton Content="指定" IsChecked="{Binding IsHueAdd, Converter={StaticResource notBool}}"/>
-                  <nume:NumericUpDown x:Name="NumeHueChange" MyMinValue="{Binding IsHueAdd, Converter={StaticResource hueMin}}"
-                              MyMaxValue="360" MyStringFormat="000"
+                </GroupBox>
+                <GroupBox Header="変換設定">
+                  <StackPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeHueChange" MyMinValue="{Binding IsHueAdd, Converter={StaticResource hueMin}}"
+                              MyMaxValue="360" MyStringFormat=" 色相 000"
                               MyValue="{Binding HueChange}"/>
-                </DockPanel>
-              </GroupBox>
-              <GroupBox Header="彩度変換">
-                <DockPanel>
-                  <RadioButton x:Name="RadioSatAdd" Content="加算" IsChecked="{Binding IsSatAdd}"/>
-                  <RadioButton x:Name="RadioSatSpe" Content="指定" 
-                       IsChecked="{Binding IsSatAdd, Converter={StaticResource notBool}}"/>
-                  <nume:NumericUpDown x:Name="NumeSatChange" MySmallChange="0.01" MyLargeChange="0.1"
+                      <RadioButton Content="加算" IsChecked="{Binding IsHueAdd}"/>
+                      <RadioButton Content="指定" IsChecked="{Binding IsHueAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeSatChange" MySmallChange="0.01" MyLargeChange="0.1"
                               MyMinValue="{Binding IsSatAdd, Converter={StaticResource satLumNin}}"
-                              MyMaxValue="1.0" MyStringFormat="0.00"
+                              MyMaxValue="1.0" MyStringFormat=" 彩度 0.00"
                               MyValue="{Binding SatChange}"/>
-                </DockPanel>
-              </GroupBox>
-              <GroupBox Header="明度変換">
-                <DockPanel>
-                  <RadioButton x:Name="RadioLumAdd" Content="加算" IsChecked="{Binding IsLumAdd}"/>
-                  <RadioButton x:Name="RadioLumSpe" Content="指定" 
-                       IsChecked="{Binding IsLumAdd, Converter={StaticResource notBool}}"/>
-                  <nume:NumericUpDown x:Name="NumeLumChange" MySmallChange="0.01" MyLargeChange="0.1"
+                      <RadioButton x:Name="RadioSatAdd" Content="加算" IsChecked="{Binding IsSatAdd}"/>
+                      <RadioButton x:Name="RadioSatSpe" Content="指定" 
+                       IsChecked="{Binding IsSatAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeLumChange" MySmallChange="0.01" MyLargeChange="0.1"
                               MyMinValue="{Binding IsLumAdd, Converter={StaticResource satLumNin}}"
-                              MyMaxValue="1.0" MyStringFormat="0.00"
+                              MyMaxValue="1.0" MyStringFormat=" 明度 0.00"
                               MyValue="{Binding LumChange}"/>
-                </DockPanel>
-              </GroupBox>
+                      <RadioButton x:Name="RadioLumAdd" Content="加算" IsChecked="{Binding IsLumAdd}"/>
+                      <RadioButton x:Name="RadioLumSpe" Content="指定" 
+                       IsChecked="{Binding IsLumAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                  </StackPanel>
+                </GroupBox>
+              </StackPanel>
+              
+              <UniformGrid>
+                <Button Content="preview" Click="ButtonConvertColor_Click"/>
+                <Button Content="convertAll" Click="ButtonChangeColorAll_Click"/>
+                <Button Content="convertSelected" Click="ButtonChangeColorSelected_Click"/>
+              </UniformGrid>
+             
             </StackPanel>
           </TabItem>
 
