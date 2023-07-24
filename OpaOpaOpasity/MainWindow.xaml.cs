@@ -16,6 +16,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Collections.ObjectModel;
 
 //半透明のpng画像を不透明に変換保存するアプリ、OpaOpaOpasityできた - 午後わてんのブログ
 //https://gogowaten.hatenablog.com/entry/2023/06/26/200756
@@ -28,17 +29,26 @@ namespace OpaOpaOpasity
     public partial class MainWindow : Window
     {
         private const string MY_APP_NAME = "OpaOpaOpacity(おぱおぱおぱしてぃ)";
-        private const string MY_FOlDER_NAME = "opaopaopasity";
-        public string MyDirectory { get; private set; } = "";
+        private const string MY_FOLDER_NAME = "opaopaopasity";
+
+        public Data MyData { get; private set; } = new();
         public MainWindow()
         {
             InitializeComponent();
+
+
+#if DEBUG
+            this.Left = 100; this.Top = 100;
+#endif
+
+            DataContext = MyData;
+
             Title = MY_APP_NAME + GetAppVersion();
             SetMyImageGridBackground();
             MyButtonConvertAll.FontSize = FontSize * 1.5;
             MyButtonConvertSelected.FontSize = FontSize * 1.5;
 
-            DataContext = this;
+
             Drop += MainWindow_Drop;
             MyListBox.SelectionChanged += MyListBox_SelectionChanged;
 
@@ -69,26 +79,29 @@ namespace OpaOpaOpasity
             var bg = MakeCheckeredPattern(20, Color.FromRgb(230, 230, 230));
             var br = MakeTileBrush(bg);
             MyImageGrid.Background = br;
+            MyImageGrid2.Background = br;
         }
         #endregion 初期化
 
         #region 右クリックメニュー
         private void SetMyListBoxContextMenu()
         {
-            ContextMenu MyListBoxContext = new();
-            MyListBox.ContextMenu = MyListBoxContext;
+            if (MyListBox.ContextMenu == null)
+            {
+                ContextMenu MyListBoxContext = new();
+                MyListBox.ContextMenu = MyListBoxContext;
 
-            MenuItem item;
-            item = new() { Header = "Alpha値を置き換える" };
-            item.Click += ItemReplace_Click;
-            MyListBoxContext.Items.Add(item);
-            item = new() { Header = "足し算" };
-            item.Click += ItemAdd_Click;
-            MyListBoxContext.Items.Add(item);
-            item = new() { Header = "引き算" };
-            item.Click += ItemSubtract_Click;
-            MyListBoxContext.Items.Add(item);
-
+                MenuItem item;
+                item = new() { Header = "Alpha値を置き換える" };
+                item.Click += ItemReplace_Click;
+                MyListBoxContext.Items.Add(item);
+                item = new() { Header = "足し算" };
+                item.Click += ItemAdd_Click;
+                MyListBoxContext.Items.Add(item);
+                item = new() { Header = "引き算" };
+                item.Click += ItemSubtract_Click;
+                MyListBoxContext.Items.Add(item);
+            }
         }
 
 
@@ -153,33 +166,47 @@ namespace OpaOpaOpasity
         }
         #endregion 市松模様画像とブラシ作成
 
-        private void SelectedExe(MyOpe ope)
+        //選択項目だけ変換
+        private void SelectedImageSave(MyOpe ope)
         {
-            List<string> files = new();
+            Collection<string> fileNames = new();
             foreach (var item in MyListBox.SelectedItems)
             {
-                string str = (string)item;
-                files.Add(System.IO.Path.Combine(MyDirectory, str));
+                fileNames.Add((string)item);
             }
-            MyExe(files, ope);
+            AlphaChangeAndSaveImages(MyData.Dir, fileNames, ope, MyData.Alpha);
+
         }
 
+        //選択項目変更で画像表示更新
         private void MyListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (MyListBox.SelectedItem is string fileName)
             {
-                string path = System.IO.Path.Combine(MyDirectory, fileName);
-                var bmp = GetBitmap(path);
-                MyImage.Source = bmp;
+                string path = System.IO.Path.Combine(MyData.Dir, fileName);
+                if (GetBitmapBgra32Dpi96(path) is (BitmapSource bmp, byte[]))
+                {
+                    MyData.Bitmap = bmp;
+                    MyData.BitmapPre = null;
+                }
             }
         }
 
+        //ファイルドロップ時
         private void MainWindow_Drop(object sender, DragEventArgs e)
         {
+            MyListBox.SelectedItem = null;
+            MyData.Dir = string.Empty;
+            MyData.FileList.Clear();
+            MyData.Bitmap = null;
+            MyData.BitmapPre = null;
+
             string[] ff = (string[])e.Data.GetData(DataFormats.FileDrop);
             string dir = string.Empty;
+            string dropFileName = string.Empty;
             if (ff != null && ff.Length > 0)
             {
+                //フォルダパス取得
                 if (File.GetAttributes(ff[0]).HasFlag(FileAttributes.Directory))
                 {
                     dir = ff[0];
@@ -188,72 +215,88 @@ namespace OpaOpaOpasity
                 {
                     var dirr = System.IO.Path.GetDirectoryName(ff[0]);
                     if (Directory.Exists(dirr)) { dir = dirr; }
+                    dropFileName = System.IO.Path.GetFileName(ff[0]);
                 }
-                MyDirectory = dir;
-                MyTextBlockDir.Text = dir;
-                MyListBox.ItemsSource = GetFileNames(dir);
+                MyData.Dir = dir;
+                //画像ファイルリスト取得
+                MyData.FileList = new ObservableCollection<string>(GetImageFileNames(dir));
+                MyListBox.SelectedItem = dropFileName;
+                //MyListBox.SelectedValue = dropFilePath;
+
+                //Listboxの右クリックメニュー更新
                 SetMyListBoxContextMenu();
             }
         }
 
         /// <summary>
-        /// 指定フォルダの中のpngファイルだけのリストを返す
+        /// 指定フォルダの中の画像ファイルリストを返す、判定は拡張子
         /// </summary>
         /// <param name="dir"></param>
         /// <returns></returns>
-
-        private List<string> GetFileNames(string dir)
+        private List<string> GetImageFileNames(string dir)
         {
+            List<string> paths = new();
+            paths.AddRange(Directory.GetFiles(dir, "*.png"));
+            paths.AddRange(Directory.GetFiles(dir, "*.jpg"));
+            paths.AddRange(Directory.GetFiles(dir, "*.jpeg"));
+            paths.AddRange(Directory.GetFiles(dir, "*.bmp"));
+            paths.AddRange(Directory.GetFiles(dir, "*.gif"));
+            paths.AddRange(Directory.GetFiles(dir, "*.tiff"));
+            paths.AddRange(Directory.GetFiles(dir, "*.wdp"));
+            paths.Sort();
+
             List<string> names = new();
-            foreach (var item in Directory.GetFiles(dir, "*.png"))
+            foreach (string path in paths)
             {
-                names.Add(System.IO.Path.GetFileName(item));
+                names.Add(System.IO.Path.GetFileName(path));
             }
+
             return names;
         }
 
-
+        #region 画像変換して保存
 
         /// <summary>
         /// 対象フォルダにopaopaopasityフォルダ作成、そこにAlpha値を変換した画像をpng形式で保存
         /// </summary>
-        /// <param name="files">対象画像ファイルリスト</param>
+        /// <param name="originDir">元画像があるフォルダ</param>
+        /// <param name="fileName">元画像ファイル名、拡張子付き</param>
         /// <param name="ope">アルファ値の計算方法</param>
-        private void MyExe(List<string> files, MyOpe ope)
+        /// <param name="alpha">アルファ値</param>
+        private void EEE(string originDir, string saveDir, string fileName, MyOpe ope, byte alpha)
         {
-            try
+            if (GetAlphaChangeBitmap(
+                             System.IO.Path.Combine(originDir, fileName),
+                             alpha, ope) is BitmapSource bb)
             {
-                if (!string.IsNullOrEmpty(MyDirectory))
-                {
-                    string dir = System.IO.Path.Combine(MyDirectory, MY_FOlDER_NAME);
-                    _ = Directory.CreateDirectory(dir);
-                    byte alpha = (byte)MySlider.Value;
-                    Parallel.For(0, files.Count, async ii =>
-                    {
-                        await SaveExe(files[ii], dir + "\\" + System.IO.Path.GetFileName(files[ii]),
-                              alpha,
-                              ope);
-                    });
-                }
+                SaveBitmapToPng(System.IO.Path.Combine(saveDir,
+                       System.IO.Path.GetFileNameWithoutExtension(fileName) + ".png"), bb);
             }
-            catch (Exception ex)
+        }
+
+        //保存フォルダを作成してそこにアルファ値変換した画像を保存
+        private void AlphaChangeAndSaveImages(string originDir, Collection<string> fileNames, MyOpe ope, byte alpha)
+        {
+            string saveDir = System.IO.Path.Combine(originDir, MY_FOLDER_NAME);
+            Directory.CreateDirectory(saveDir);
+
+            Parallel.For(0, fileNames.Count, iii =>
             {
-                MessageBox.Show(ex.Message);
-            }
+                EEE(originDir, saveDir, fileNames[iii], ope, alpha);
+            });
         }
 
 
         /// <summary>
-        /// 画像ファイルを指定Alphaと計算して保存
+        /// Bitmapのアルファ値を変換
         /// </summary>
-        /// <param name="bmpPath">画像ファイルパス</param>
-        /// <param name="savePath">保存パス</param>
-        /// <param name="alpha">アルファ値指定</param>
-        /// <param name="ope">アルファ値の計算方法指定</param>
+        /// <param name="imagePath">画像ファイルパス</param>
+        /// <param name="alpha">アルファ値</param>
+        /// <param name="ope">アルファ値計算方法</param>
         /// <returns></returns>
-        private async Task<bool> SaveExe(string bmpPath, string savePath, byte alpha, MyOpe ope)
+        private BitmapSource? GetAlphaChangeBitmap(string imagePath, byte alpha, MyOpe ope)
         {
-            if (GetBitmap(bmpPath) is BitmapSource bmp)
+            if (GetBitmapBgra32Dpi96(imagePath) is (BitmapSource bmp, byte[]))
             {
                 switch (ope)
                 {
@@ -269,29 +312,30 @@ namespace OpaOpaOpasity
                     default:
                         break;
                 }
-                await Task.Run(() =>
-                {
-                    SaveBitmapToPng(savePath, bmp);
-                });
-                return true;
+                return bmp;
             }
-            return false;
+            return null;
+
         }
 
-        private void SaveBitmapToPng(string filename, BitmapSource bmp)
+
+        /// <summary>
+        /// png形式で保存する
+        /// </summary>
+        /// <param name="fullPath">フルパス</param>
+        /// <param name="bmp">画像</param>
+        private static void SaveBitmapToPng(string fullPath, BitmapSource bmp)
         {
             BitmapMetadata metadata = new("png");
             metadata.SetQuery("/tEXt/Software", MY_APP_NAME);
             PngBitmapEncoder encoder = new();
             encoder.Frames.Add(BitmapFrame.Create(bmp, null, metadata, null));
-            using FileStream stream = new(filename, FileMode.Create, FileAccess.Write);
+            using FileStream stream = new(fullPath, FileMode.Create, FileAccess.Write, FileShare.Write);
             encoder.Save(stream);
         }
+        #endregion 画像変換して保存
 
         #region アルファ値変換
-
-
-
         /// <summary>
         /// すべてのピクセルを指定Alphaに変換。元のAlpha値が0だった場合は変換しない
         /// </summary>
@@ -368,14 +412,38 @@ namespace OpaOpaOpasity
         #endregion アルファ値変換
 
 
-        private BitmapSource? GetBitmap(string path)
+        #region 画像を開く
+
+        /// <summary>
+        /// 画像ファイルパスからBitmap取得
+        /// PixelformatBgra32＋dpi96で画像取得
+        /// 画像ファイルとして開いて返す、エラーの場合はnullを返す
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        private (BitmapSource?, byte[]?) GetBitmapBgra32Dpi96(string path)
         {
-            if (!File.Exists(path)) return null;
-            PngBitmapDecoder decoder = new(new Uri(path), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-            BitmapSource bmp = decoder.Frames[0];
-            return ConverterBitmapFromatBgra32(bmp);
+            if (File.Exists(path) == false) { return (null, null); }
+
+            using FileStream stream = File.OpenRead(path);
+            BitmapSource bmp;
+            try
+            {
+                bmp = BitmapFrame.Create(stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                return ConverterBitmapDipWithPixels(ConverterBitmapFromatBgra32(bmp));
+            }
+            catch (Exception)
+            {
+                return (null, null);
+            }
         }
 
+
+        /// <summary>
+        /// BitmapSourceのピクセルフォーマットをBgra32に変換するだけ
+        /// </summary>
+        /// <param name="bmp"></param>
+        /// <returns></returns>
         private static BitmapSource ConverterBitmapFromatBgra32(BitmapSource bmp)
         {
             if (bmp.Format != PixelFormats.Bgra32)
@@ -386,52 +454,247 @@ namespace OpaOpaOpasity
             return bmp;
         }
 
+        /// <summary>
+        /// BitmapSourceのdpiを96に変換＋pixelsも返す、PixelFormatsBgra32専用
+        /// </summary>
+        /// <param name="bmp"></param>
+        /// <returns></returns>
+        private (BitmapSource, byte[]) ConverterBitmapDipWithPixels(BitmapSource bmp)
+        {
+            int w = bmp.PixelWidth;
+            int h = bmp.PixelHeight;
+            int stride = w * 4;
+            byte[] pixels = new byte[stride * h];
+            bmp.CopyPixels(pixels, stride, 0);
+            //png画像はdpi95.98とかの場合もあるけど、
+            //これは問題ないので変換しない
+            if (bmp.DpiX < 95.0 || 96.0 < bmp.DpiX)
+            {
+                bmp = BitmapSource.Create(w, h, 96.0, 96.0, bmp.Format, null, pixels, stride);
+            }
+            return (bmp, pixels);
+        }
+
+        //private BitmapSource? GetBitmap(string path)
+        //{
+        //    if (!File.Exists(path)) return null;
+        //    PngBitmapDecoder decoder = new(new Uri(path), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+        //    BitmapSource bmp = decoder.Frames[0];
+        //    return ConverterBitmapFromatBgra32(bmp);
+        //}
+        #endregion 画像を開く
+
+
+        #region 色変換保存
+        //保存フォルダを作成してそこに色変換した画像を保存
+        private void ColorChangeAndSaveImages(string originDir, Collection<string> fileNames)
+        {
+            string saveDir = System.IO.Path.Combine(originDir, MY_FOLDER_NAME);
+            Directory.CreateDirectory(saveDir);
+
+            Parallel.For(0, fileNames.Count, iii =>
+            {
+                EEE2(originDir, saveDir, fileNames[iii]);
+            });
+        }
+
+
+        /// <summary>
+        /// 対象フォルダにopaopaopasityフォルダ作成、そこに色変換した画像をpng形式で保存
+        /// </summary>
+        /// <param name="originDir">元画像があるフォルダ</param>
+        /// <param name="saveDir">保存フォルダパス</param>
+        /// <param name="fileName">元画像ファイル名、拡張子付き</param>
+        private void EEE2(string originDir, string saveDir, string fileName)
+        {
+            string imagePath = System.IO.Path.Combine(originDir, fileName);
+            (BitmapSource? bitmap, _) = GetBitmapBgra32Dpi96(imagePath);
+            bitmap = ChangeColor(bitmap);
+            if (bitmap != null)
+            {
+                SaveBitmapToPng(
+                    System.IO.Path.Combine(saveDir,
+                    System.IO.Path.GetFileNameWithoutExtension(fileName) + ".png"), bitmap);
+            }
+        }
+
+
+        #endregion 色変換保存
+
+        #region 色変換
+
+
+        private BitmapSource? ChangeColor(BitmapSource? bmp)
+        {
+            if (bmp == null) return null;
+            int wi = bmp.PixelWidth;
+            int hi = bmp.PixelHeight;
+            int stride = wi * 4;
+            byte[] pixels = new byte[hi * stride];
+            bmp.CopyPixels(pixels, stride, 0);
+
+            for (int i = 0; i < pixels.Length; i += 4)
+            {
+                byte b = pixels[i];
+                byte g = pixels[i + 1];
+                byte r = pixels[i + 2];
+                byte a = pixels[i + 3];
+                if (a != 0)
+                {
+                    var (h, s, l) = MathHSL.Rgb2Hsl(r, g, b);
+                    if (CheckIsArea(h, s, l))
+                    {
+                        (byte rr, byte gg, byte bb) = MathHSL.Hsl2Rgb(GetNewHue(h), GetNewSat(s), GetNewLum(l));
+                        pixels[i] = bb;
+                        pixels[i + 1] = gg;
+                        pixels[i + 2] = rr;
+                    }
+                }
+            }
+            var bbb = BitmapSource.Create(wi, hi, 96.0, 96.0, bmp.Format, null, pixels, stride);
+            return bbb;
+        }
+
+        /// <summary>
+        /// HSVの変換対象範囲判定、hsvの値は範囲に入っているのかどうか
+        /// </summary>
+        /// <param name="r"></param>
+        /// <param name="g"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        private bool CheckIsArea(double h, double s, double l)
+        {
+            if (!CheckAreaHSV(MyData.HueMin, MyData.HueMax, h))
+            {
+                return false;
+            }
+            else if (!CheckAreaHSV(MyData.SatMin, MyData.SatMax, s))
+            {
+                return false;
+            }
+            else if (!CheckAreaHSV(MyData.LumMin, MyData.LumMax, l))
+            {
+                return false;
+            }
+            return true;
+
+            bool CheckAreaHSV(double min, double max, double value)
+            {
+                if (min <= max)
+                {
+                    return min <= value && value <= max;
+                }
+                else
+                {
+                    return min <= value || value <= max;
+                }
+            }
+        }
+
+
+        private double GetNewHue(double hue)
+        {
+            if (MyData.IsHueAdd == true)
+            {
+                return FixHue(hue + MyData.HueChange);
+            }
+            else
+            {
+                return MyData.HueChange;
+            }
+        }
+        private double GetNewSat(double sat)
+        {
+            if (MyData.IsSatAdd == true)
+            {
+                return FixSatOrLum(sat + MyData.SatChange);
+            }
+            else
+            {
+                return MyData.SatChange;
+            }
+        }
+        private double GetNewLum(double lum)
+        {
+            if (MyData.IsLumAdd == true)
+            {
+                return FixSatOrLum(lum + MyData.LumChange);
+            }
+            else
+            {
+                return MyData.LumChange;
+            }
+        }
+
+
+        public static double FixHue(double hue)
+        {
+            if (hue < 0)
+            {
+                return 360.0 + hue;
+            }
+            else if (hue > 360.0)
+            {
+                return hue - 360.0;
+            }
+            else return hue;
+            //return hue < 0.0 ? 0.0 : hue > 360.0 ? 360.0 : hue;
+
+        }
+        public static double FixSatOrLum(double value)
+        {
+            return value < 0.0 ? 0.0 : value > 1.0 ? 1.0 : value;
+        }
+
+        #endregion 色変換
+
+
         #region メインウィンドウボタンクリック
 
-        private void Button_Click_1(object sender, RoutedEventArgs e)
+        private void ButtonAlpha0_Click(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 0.0;
+            MyData.Alpha = 0;
         }
 
-        private void Button_Click_2(object sender, RoutedEventArgs e)
+        private void ButtonAlpha127_Click(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 127;
+            MyData.Alpha = 127;
         }
 
-        private void Button_Click_3(object sender, RoutedEventArgs e)
+        private void ButtonAlpha255_Click(object sender, RoutedEventArgs e)
         {
-            MySlider.Value = 255;
+            MyData.Alpha = 255;
         }
 
 
         private void ButtonAllReplace_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Replace);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Replace, MyData.Alpha);
         }
 
         private void ButtonAllAdd_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Add);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Add, MyData.Alpha);
         }
 
         private void ButtonAllSubtract_Click(object sender, RoutedEventArgs e)
         {
-            MyExe(Directory.GetFiles(MyDirectory, "*.png").ToList(), MyOpe.Subtract);
+            AlphaChangeAndSaveImages(MyData.Dir, MyData.FileList, MyOpe.Subtract, MyData.Alpha);
         }
 
         private void ButtonSelectedReplace_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Replace);
+            SelectedImageSave(MyOpe.Replace);
         }
 
         private void ButtonSelectedAdd_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Add);
+            SelectedImageSave(MyOpe.Add);
         }
 
         private void ButtonSelectedSubtract_Click_4(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Subtract);
+            SelectedImageSave(MyOpe.Subtract);
         }
         #endregion メインウィンドウボタンクリック
 
@@ -439,36 +702,45 @@ namespace OpaOpaOpasity
 
         private void ItemReplace_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Replace);
+            SelectedImageSave(MyOpe.Replace);
         }
 
         private void ItemSubtract_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Subtract);
+            SelectedImageSave(MyOpe.Subtract);
         }
 
         private void ItemAdd_Click(object sender, RoutedEventArgs e)
         {
-            SelectedExe(MyOpe.Add);
+            SelectedImageSave(MyOpe.Add);
         }
 
         #endregion 右クリックメニュークリック
 
-    }
-
-    public class MyConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            double dd = (double)value;
-            return dd / 255;
+            var ddd = MyData;
+            var neko = MyListBox.SelectedValue;
+            var inu = MyListBox.SelectedItem;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        private void ButtonConvertColor_Click(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            MyData.BitmapPre = ChangeColor(MyData.Bitmap);
+        }
+
+        private void ButtonChangeColorAll_Click(object sender, RoutedEventArgs e)
+        {
+            ColorChangeAndSaveImages(MyData.Dir, MyData.FileList);
+        }
+
+        private void ButtonChangeColorSelected_Click(object sender, RoutedEventArgs e)
+        {
+            Collection<string> list = new(MyListBox.SelectedItems.Cast<string>().ToArray());
+            ColorChangeAndSaveImages(MyData.Dir, list);
         }
     }
+
 
     public enum MyOpe
     {

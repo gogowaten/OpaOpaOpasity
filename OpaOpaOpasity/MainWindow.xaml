@@ -4,8 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OpaOpaOpasity"
+        xmlns:nume="clr-namespace:ControlLibraryCore20200620;assembly=ControlLibraryCore20200620"
+        d:DataContext="{d:DesignInstance Type=local:Data}"
         mc:Ignorable="d"
-        Title="MainWindow" Height="650" Width="800"
+        Title="MainWindow" Height="750" Width="800"
         AllowDrop="True"
         ResizeMode="CanResizeWithGrip">
   <Window.Resources>
@@ -13,68 +15,179 @@
       <Setter Property="Margin" Value="10,5,5,10"/>
     </Style>
     <local:MyConverter x:Key="opa"/>
+    <local:MyConverterNotBool x:Key="notBool"/>
+    <local:MyConverterSatLumMin x:Key="satLumNin"/>
+    <local:MyConverterHueMin x:Key="hueMin"/>
   </Window.Resources>
-  <Grid>
-    <Grid.ColumnDefinitions>
-      <ColumnDefinition/>
-      <ColumnDefinition/>
-    </Grid.ColumnDefinitions>
+  <DockPanel>
+    <TextBlock Text="対象フォルダ" DockPanel.Dock="Top"/>
+    <TextBlock Text="{Binding Dir}" Margin="10,0,0,10" DockPanel.Dock="Top"/>
 
-    <ListBox x:Name="MyListBox" SelectionMode="Extended"/>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition/>
+        <ColumnDefinition/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="2*"/>
+        <RowDefinition Height="3*"/>
+      </Grid.RowDefinitions>
 
-    <StackPanel Grid.Column="1">
-      <TextBlock Text="対象フォルダ"/>
-      <TextBlock x:Name="MyTextBlockDir" Text="" Margin="10,0,0,10"/>
-      <!--<GroupBox Header="完全透明のピクセルを">
-        <StackPanel Orientation="Horizontal">
-          <RadioButton Content="透明のまま" IsChecked="True"/>
-          <RadioButton Content="不透明黒" IsChecked="False"/>
-          <RadioButton Content="不透明白" IsChecked="False"/>
-        </StackPanel>
-      </GroupBox>-->
-      <GroupBox Header="不透明度(Opacity)の指定" Margin="10">
-        <StackPanel>
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBlock Text="{Binding ElementName=MySlider,
-                                      Path=Value,
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="元画像" HorizontalAlignment="Center"/>
+        <Grid x:Name="MyImageGrid" UseLayoutRounding="True">
+          <Image x:Name="MyImage" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="auto" 
+               RenderOptions.BitmapScalingMode="Fant"
+               Source="{Binding Bitmap}"/>
+        </Grid>
+      </DockPanel>
+
+      <ListBox Grid.Row="1" x:Name="MyListBox" SelectionMode="Extended"
+             ItemsSource="{Binding FileList}"/>
+
+
+      <DockPanel Grid.Column="1">
+        <TextBlock DockPanel.Dock="Top" Text="変換画像(プレビュー)" HorizontalAlignment="Center"/>
+        <Grid x:Name="MyImageGrid2" UseLayoutRounding="True">
+          <Image x:Name="MyImage2" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="auto" 
+               RenderOptions.BitmapScalingMode="Fant"
+               Source="{Binding BitmapPre}"/>
+        </Grid>
+      </DockPanel>
+
+      <StackPanel Grid.Column="1" Grid.Row="1">
+        
+        
+        <!--デバッグ用-->
+        <!--<Button Content="check" Click="Button_Click"/>-->
+        
+        
+        <TabControl Grid.Column="1">
+          <TabItem Header="不透明度">
+            <StackPanel Grid.Column="1">
+              <GroupBox Header="不透明度(Opacity)の指定" Margin="10">
+                <StackPanel>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding Alpha,
                                       Converter={StaticResource opa},
                                       StringFormat=Opacity \= {0:0.00}}"
                        HorizontalAlignment="Center"/>
-            <TextBlock Text="{Binding ElementName=MySlider, Path=Value, StringFormat=(Alpha \= {0})}"
+                    <TextBlock Text="{Binding Alpha, StringFormat=(Alpha \= {0})}"
                        HorizontalAlignment="Center" Margin="10,0,0,0"/>
-          </StackPanel>
-          <Slider x:Name="MySlider" Minimum="0" Maximum="255" Value="255" IsSnapToTickEnabled="True" Margin="10,0,10,0"/>
-          <UniformGrid Columns="3">
-            <Button Content="0.0" Click="Button_Click_1"/>
-            <Button Content="0.5" Click="Button_Click_2"/>
-            <Button Content="1.0" Click="Button_Click_3"/>
-          </UniformGrid>
-        </StackPanel>
-      </GroupBox>
+                  </StackPanel>
+                  <Slider Value="{Binding Alpha}" Minimum="0" Maximum="255" IsSnapToTickEnabled="True" Margin="10,0,10,0"/>
+                  <UniformGrid Columns="3">
+                    <Button Content="0.0" Click="ButtonAlpha0_Click"/>
+                    <Button Content="0.5" Click="ButtonAlpha127_Click"/>
+                    <Button Content="1.0" Click="ButtonAlpha255_Click"/>
+                  </UniformGrid>
+                </StackPanel>
+              </GroupBox>
 
-      <UniformGrid Columns="2" Margin="10,0,10,0">
-        <GroupBox Header="全部変換保存">
-          <StackPanel>
-            <Button x:Name="MyButtonConvertAll" Content="置き換え" Click="ButtonAllReplace_Click"/>
-            <Button Content="足し算" Click="ButtonAllAdd_Click"/>
-            <Button Content="引き算" Click="ButtonAllSubtract_Click"/>
-          </StackPanel>
-        </GroupBox>
-        <GroupBox Header="選択項目だけ変換保存">
-          <StackPanel>
-            <Button x:Name="MyButtonConvertSelected" Content="置き換え" Click="ButtonSelectedReplace_Click"/>
-            <Button Content="足し算" Click="ButtonSelectedAdd_Click"/>
-            <Button Content="引き算" Click="ButtonSelectedSubtract_Click_4"/>
-          </StackPanel>
-        </GroupBox>
-      </UniformGrid>
+              <UniformGrid Columns="2" Margin="10,0,10,0">
+                <GroupBox Header="全部変換保存">
+                  <StackPanel>
+                    <Button x:Name="MyButtonConvertAll" Content="置き換え" Click="ButtonAllReplace_Click"/>
+                    <Button Content="足し算" Click="ButtonAllAdd_Click"/>
+                    <Button Content="引き算" Click="ButtonAllSubtract_Click"/>
+                  </StackPanel>
+                </GroupBox>
+                <GroupBox Header="選択項目だけ変換保存">
+                  <StackPanel>
+                    <Button x:Name="MyButtonConvertSelected" Content="置き換え" Click="ButtonSelectedReplace_Click"/>
+                    <Button Content="足し算" Click="ButtonSelectedAdd_Click"/>
+                    <Button Content="引き算" Click="ButtonSelectedSubtract_Click_4"/>
+                  </StackPanel>
+                </GroupBox>
+              </UniformGrid>
 
-      <ProgressBar x:Name="MyProgressBar" Height="2"/>
-      <TextBlock Text="元画像"/>
-      <Grid x:Name="MyImageGrid" UseLayoutRounding="True">
-        <Image x:Name="MyImage" StretchDirection="DownOnly" Stretch="Uniform" Height="auto" Width="auto" 
-               RenderOptions.BitmapScalingMode="Fant"/>
-      </Grid>
-    </StackPanel>
-  </Grid>
+            </StackPanel>
+          </TabItem>
+
+          <TabItem Header="色変更">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <GroupBox Header="範囲指定">
+                  <GroupBox.Resources>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="VerticalAlignment" Value="Center"/>
+                    </Style>
+                  </GroupBox.Resources>
+                  <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="色相(H) "/>
+                      <nume:NumericUpDown x:Name="NumeHueMin" MyStringFormat="下限 000"
+                              MyMinValue="0" MyMaxValue="360"
+                              MyValue="{Binding HueMin}"/>
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown x:Name="NumeHueMax" MyStringFormat="上限 000" 
+                              MyMinValue="0" MyMaxValue="360"
+                              MyValue="{Binding HueMax}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="彩度(S) "/>
+                      <nume:NumericUpDown Name="NumeSatMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                              MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding SatMin}"/>
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown Name="NumeSatMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                              MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding SatMax}"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="明度(L) "/>
+                      <nume:NumericUpDown Name="NumeLumMin" MyStringFormat="下限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                              MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding LumMin}"/>
+                      <TextBlock Text="から"/>
+                      <nume:NumericUpDown Name="NumeLumMax" MyStringFormat="上限 0.00" MyMinValue="0.0" MyMaxValue="1.0"
+                              MySmallChange="0.01" MyLargeChange="0.1" MyValue="{Binding LumMax}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </GroupBox>
+                <GroupBox Header="変換設定">
+                  <StackPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeHueChange" MyMinValue="{Binding IsHueAdd, Converter={StaticResource hueMin}}"
+                              MyMaxValue="360" MyStringFormat=" 色相 000"
+                              MyValue="{Binding HueChange}"/>
+                      <RadioButton Content="加算" IsChecked="{Binding IsHueAdd}"/>
+                      <RadioButton Content="指定" IsChecked="{Binding IsHueAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeSatChange" MySmallChange="0.01" MyLargeChange="0.1"
+                              MyMinValue="{Binding IsSatAdd, Converter={StaticResource satLumNin}}"
+                              MyMaxValue="1.0" MyStringFormat=" 彩度 0.00"
+                              MyValue="{Binding SatChange}"/>
+                      <RadioButton x:Name="RadioSatAdd" Content="加算" IsChecked="{Binding IsSatAdd}"/>
+                      <RadioButton x:Name="RadioSatSpe" Content="指定" 
+                       IsChecked="{Binding IsSatAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <nume:NumericUpDown x:Name="NumeLumChange" MySmallChange="0.01" MyLargeChange="0.1"
+                              MyMinValue="{Binding IsLumAdd, Converter={StaticResource satLumNin}}"
+                              MyMaxValue="1.0" MyStringFormat=" 明度 0.00"
+                              MyValue="{Binding LumChange}"/>
+                      <RadioButton x:Name="RadioLumAdd" Content="加算" IsChecked="{Binding IsLumAdd}"/>
+                      <RadioButton x:Name="RadioLumSpe" Content="指定" 
+                       IsChecked="{Binding IsLumAdd, Converter={StaticResource notBool}}"/>
+                    </DockPanel>
+                  </StackPanel>
+                </GroupBox>
+              </StackPanel>
+              
+              <UniformGrid>
+                <Button Content="preview" Click="ButtonConvertColor_Click"/>
+                <Button Content="convertAll" Click="ButtonChangeColorAll_Click"/>
+                <Button Content="convertSelected" Click="ButtonChangeColorSelected_Click"/>
+              </UniformGrid>
+             
+            </StackPanel>
+          </TabItem>
+
+        </TabControl>
+
+      </StackPanel>
+
+    </Grid>
+  </DockPanel>
 </Window>
